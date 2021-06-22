@@ -91,7 +91,7 @@ def run_lorenz_euler(dt,T):
 
 def main_scipy():
     T = 10. 
-    dt = T/180.
+    dt = T/14400
     t, l63 = run_lorenz_scipy(dt,T)
     t_, l63_ = run_lorenz_euler(dt,T)
 
