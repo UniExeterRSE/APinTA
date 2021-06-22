@@ -140,9 +140,9 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
         ax1.plot(xG, corr[0,:,-1,i], '-o', lw=1.5, label="x corr")
         ax2.plot(xG, corr[1,:,-1,i], '-o', lw=1.5, label="y corr")
         ax3.plot(xG, corr[2,:,-1,i], '-o', lw=1.5, label="z corr")
-        ax1.set_ylabel("X,Y,Z")
-        ax2.set_ylabel("X,Y,Z")
-        ax3.set_ylabel("X,Y,Z")
+        ax1.set_ylabel("X")
+        ax2.set_ylabel("Y")
+        ax3.set_ylabel("Z")
         ax3.set_xlabel("Time")
         ax1.set_title(f"Lorenz Attractor: iteration {i}")
         ax1.legend()
@@ -151,22 +151,52 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
         plt.savefig(f"iteration_{i}.png")
         plt.show()
 
+def fineRes(a,b,nF,y0,f,F):
+    """
+    Lorenz results using fine resolution integrator as a comparison
+    """
+    #a = 0
+    #b = 10.
+    #nF = 500000 
+    #y0 = [20,5,-5]
+    #f = lorenz63
+    #F = lorenz_rk4
+    xF = np.linspace(a,b,nF)
+    yF = np.zeros((3,nF))
+    yF[:,0] = np.array([i for i in y0])
+    deltaF = xF[1] - xF[0]
+    for i in range(1,nF):
+        yF[0,i], yF[1,i],yF[2,i] = fineEval(F, deltaF, nF, yF[0,i-1], yF[1,i-1], yF[2,i-1], f)
+    
+    ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
+    ax1.plot(xF, yF[0,:], '-o', lw=1.5, label="x")
+    ax2.plot(xF, yF[1,:], '-o', lw=1.5, label="y")
+    ax3.plot(xF, yF[2,:], '-o', lw=1.5, label="z")
+    ax1.set_ylabel("X")
+    ax2.set_ylabel("Y")
+    ax3.set_ylabel("Z")
+    ax3.set_xlabel("Time")
+    ax1.set_title(f"Lorenz Attractor {deltaF}")
+    ax1.legend()
+    ax2.legend()
+    ax3.legend()
+    plt.savefig(f"fineres.png")
+    plt.show()
 
-    #print(yG_correct.shape)
-    #print(yG_correct)
 
 def main():
     a = 0
     b = 10.
     nG = 500
-    nF = 10000
-    K = 4 
+    nF = 1000
+    K = 5 
     y0 = [20,5,-5]
     f = lorenz63
     G = lorenz_rk4
     F = lorenz_rk4
 
     parareal(a,b,nG,nF,K,y0,f,G,F)
+    fineRes(a,b,nF*nG,y0,f,F)
 
 if __name__ == "__main__":
     main()
