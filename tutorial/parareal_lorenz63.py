@@ -97,19 +97,19 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
     # Correction terms
     yG_correct = yG.copy()
     # fine integrator
-    for i in range(nG):
-        xF[i,:] = np.linspace(nG,nG,nF) 
+    for i in range(nG-1):
+        left,right = xG[i], xG[i+1]
+        xF[i,:] = np.linspace(left,right,nF) 
 
     corr = np.zeros((3,nG,nF,K))
-    deltaF = xF[0,1] - xF[0,1]
-
+    deltaF = xF[0,1] - xF[0,0]
+    corr[:,0,0,:] = np.array([i * np.ones(K) for i in y0])
     for k in range(1,K):
         # run fine integration in parallel for each k iteration
         for i in range(nG):
             corr[:,i,0,k] = yG_correct[:,i,k-1]
             for j in range(1,nF): # This needs to be done in parallel
                 corr[0,i,j,k], corr[1,i,j,k], corr[2,i,j,k] = fineEval(F, deltaF, nF, corr[0,i,j-1,k], corr[1,i,j-1,k], corr[2,i,j-1,k], f)
-            
             if i < 0:
                 ax1,ax2 = plt.figure().subplots(2,1)
                 ax1.plot(xG, yG_correct[0,:,k], '-o', lw=1.5, label="x")
@@ -129,7 +129,8 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
 
         # predict and correct
         for i in range(nG-1):
-            yG[0,i+1,k], yG[1,i+1,k],yG[2,i+1,k] = coarseEval(G, deltaG, nG, yG[0,i-1,0], yG[1,i-1,0], yG[2,i-1,0], f)
+            yG[0,i+1,k], yG[1,i+1,k],yG[2,i+1,k] = coarseEval(G, deltaG, nG, yG_correct[0,i,k], yG_correct[1,i,k], yG_correct[2,i,k], f)
+            #print(corr[:,i,-1,k])
             yG_correct[:,i+1,k] = yG[:,i+1,k] - yG[:,i+1,k-1] + corr[:,i,-1,k]
     
     for i in range(K):
@@ -150,6 +151,23 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
         ax3.legend()
         plt.savefig(f"iteration_{i}.png")
         plt.show()
+
+    for i in range(K):
+        ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
+        ax1.plot(xG, yG_correct[0,:,i]-corr[0,:,-1,i], '-o', lw=1.5, label="x")
+        ax2.plot(xG, yG_correct[1,:,i]-corr[1,:,-1,i], '-o', lw=1.5, label="y")
+        ax3.plot(xG, yG_correct[2,:,i]-corr[2,:,-1,i], '-o', lw=1.5, label="z")
+        ax1.set_ylabel("X")
+        ax2.set_ylabel("Y")
+        ax3.set_ylabel("Z")
+        ax3.set_xlabel("Time")
+        ax1.set_title(f"Lorenz Attractor: iteration {i}")
+        ax1.legend()
+        ax2.legend()
+        ax3.legend()
+        plt.savefig(f"iteration_diff{i}.png")
+        plt.show()
+
 
 def fineRes(a,b,nF,y0,f,F):
     """
@@ -187,16 +205,16 @@ def fineRes(a,b,nF,y0,f,F):
 def main():
     a = 0
     b = 10.
-    nG = 500
-    nF = 1000
-    K = 5 
+    nG = 144
+    nF = 14400 
+    K = 20 
     y0 = [20,5,-5]
     f = lorenz63
     G = lorenz_rk4
     F = lorenz_rk4
 
     parareal(a,b,nG,nF,K,y0,f,G,F)
-    fineRes(a,b,nF*nG,y0,f,F)
+    #fineRes(a,b,nF,y0,f,F)
 
 if __name__ == "__main__":
     main()
