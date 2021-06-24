@@ -83,32 +83,32 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
     """
     # Lorenz system has x,y, components. 
     # 1,2,3 suffix are the x,y,z dimensions
-    xG = np.linspace(a,b,nG)
-    yG = np.zeros((3,nG,K))
-    deltaG = (b-a)/(nG)
+    xG = np.linspace(a,b,nG+1)
+    yG = np.zeros((3,len(xG),K))
+    deltaG = (b-a)/(nG+1)
     #print(deltaG, nG)
     yG[:,0,:] = np.array([i * np.ones(K) for i in y0])
-    xF = np.zeros((nG, nF))
+    xF = np.zeros((nG, nF+1))
 
     # initial coarse integration solution
     #sys.exit()
-    for i in range(1,nG):
+    for i in range(1,nG+1):
         yG[0,i,0], yG[1,i,0],yG[2,i,0] = coarseEval(G, deltaG, nG, yG[0,i-1,0], yG[1,i-1,0], yG[2,i-1,0], f)
     # Correction terms
     yG_correct = yG.copy()
     # fine integrator
-    for i in range(nG-1):
+    for i in range(nG):
         left,right = xG[i], xG[i+1]
-        xF[i,:] = np.linspace(left,right,nF) 
+        xF[i,:] = np.linspace(left,right,nF+1) 
 
-    corr = np.zeros((3,nG,nF,K))
+    corr = np.zeros((3,nG,nF+1,K))
     deltaF = xF[0,1] - xF[0,0]
     corr[:,0,0,:] = np.array([i * np.ones(K) for i in y0])
     for k in range(1,K):
         # run fine integration in parallel for each k iteration
         for i in range(nG):
             corr[:,i,0,k] = yG_correct[:,i,k-1]
-            for j in range(1,nF): # This needs to be done in parallel
+            for j in range(1,nF+1): # This needs to be done in parallel
                 corr[0,i,j,k], corr[1,i,j,k], corr[2,i,j,k] = fineEval(F, deltaF, nF, corr[0,i,j-1,k], corr[1,i,j-1,k], corr[2,i,j-1,k], f)
             if i < 0:
                 ax1,ax2 = plt.figure().subplots(2,1)
@@ -128,19 +128,19 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
                 plt.show()
 
         # predict and correct
-        for i in range(nG-1):
+        for i in range(nG):
             yG[0,i+1,k], yG[1,i+1,k],yG[2,i+1,k] = coarseEval(G, deltaG, nG, yG_correct[0,i,k], yG_correct[1,i,k], yG_correct[2,i,k], f)
             #print(corr[:,i,-1,k])
             yG_correct[:,i+1,k] = yG[:,i+1,k] - yG[:,i+1,k-1] + corr[:,i,-1,k]
     
     for i in range(K):
         ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
-        ax1.plot(xG, yG_correct[0,:,i], '-o', lw=1.5, label="x")
-        ax2.plot(xG, yG_correct[1,:,i], '-o', lw=1.5, label="y")
-        ax3.plot(xG, yG_correct[2,:,i], '-o', lw=1.5, label="z")
-        ax1.plot(xG, corr[0,:,-1,i], '-o', lw=1.5, label="x corr")
-        ax2.plot(xG, corr[1,:,-1,i], '-o', lw=1.5, label="y corr")
-        ax3.plot(xG, corr[2,:,-1,i], '-o', lw=1.5, label="z corr")
+        ax1.plot(xG[1:], yG_correct[0,1:,i], '-o', lw=1.5, label="x")
+        ax2.plot(xG[1:], yG_correct[1,1:,i], '-o', lw=1.5, label="y")
+        ax3.plot(xG[1:], yG_correct[2,1:,i], '-o', lw=1.5, label="z")
+        ax1.plot(xG[1:], corr[0,:,-1,i], '-o', lw=1.5, label="x corr")
+        ax2.plot(xG[1:], corr[1,:,-1,i], '-o', lw=1.5, label="y corr")
+        ax3.plot(xG[1:], corr[2,:,-1,i], '-o', lw=1.5, label="z corr")
         ax1.set_ylabel("X")
         ax2.set_ylabel("Y")
         ax3.set_ylabel("Z")
@@ -154,9 +154,9 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
 
     for i in range(K):
         ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
-        ax1.plot(xG, yG_correct[0,:,i]-corr[0,:,-1,i], '-o', lw=1.5, label="x")
-        ax2.plot(xG, yG_correct[1,:,i]-corr[1,:,-1,i], '-o', lw=1.5, label="y")
-        ax3.plot(xG, yG_correct[2,:,i]-corr[2,:,-1,i], '-o', lw=1.5, label="z")
+        ax1.plot(xG[1:], yG_correct[0,1:,i]-corr[0,:,-1,i], '-o', lw=1.5, label="x")
+        ax2.plot(xG[1:], yG_correct[1,1:,i]-corr[1,:,-1,i], '-o', lw=1.5, label="y")
+        ax3.plot(xG[1:], yG_correct[2,1:,i]-corr[2,:,-1,i], '-o', lw=1.5, label="z")
         ax1.set_ylabel("X")
         ax2.set_ylabel("Y")
         ax3.set_ylabel("Z")
