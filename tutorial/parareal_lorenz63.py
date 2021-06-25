@@ -85,10 +85,10 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
     # 1,2,3 suffix are the x,y,z dimensions
     xG = np.linspace(a,b,nG+1)
     yG = np.zeros((3,len(xG),K))
-    deltaG = (b-a)/(nG+1)
+    deltaG = (b-a)/nG
     #print(deltaG, nG)
     yG[:,0,:] = np.array([i * np.ones(K) for i in y0])
-    xF = np.zeros((nG, nF+1))
+    xF = np.zeros((nG, int(nF/nG)+1))
 
     # initial coarse integration solution
     #sys.exit()
@@ -99,16 +99,16 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
     # fine integrator
     for i in range(nG):
         left,right = xG[i], xG[i+1]
-        xF[i,:] = np.linspace(left,right,nF+1) 
+        xF[i,:] = np.linspace(left,right,int(nF/nG)+1) 
 
-    corr = np.zeros((3,nG,nF+1,K))
+    corr = np.zeros((3,nG,int(nF/nG)+1,K))
     deltaF = xF[0,1] - xF[0,0]
     corr[:,0,0,:] = np.array([i * np.ones(K) for i in y0])
     for k in range(1,K):
         # run fine integration in parallel for each k iteration
         for i in range(nG):
             corr[:,i,0,k] = yG_correct[:,i,k-1]
-            for j in range(1,nF+1): # This needs to be done in parallel
+            for j in range(1,int(nF/nG)+1): # This needs to be done in parallel
                 corr[0,i,j,k], corr[1,i,j,k], corr[2,i,j,k] = fineEval(F, deltaF, nF, corr[0,i,j-1,k], corr[1,i,j-1,k], corr[2,i,j-1,k], f)
             if i < 0:
                 ax1,ax2 = plt.figure().subplots(2,1)
@@ -205,7 +205,7 @@ def fineRes(a,b,nF,y0,f,F):
 def main():
     a = 0
     b = 10.
-    nG = 144
+    nG = 180
     nF = 14400 
     K = 20 
     y0 = [20,5,-5]
