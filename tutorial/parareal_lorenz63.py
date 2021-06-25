@@ -85,7 +85,7 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
     # 1,2,3 suffix are the x,y,z dimensions
     xG = np.linspace(a,b,nG+1)
     yG = np.zeros((3,len(xG),K))
-    deltaG = (b-a)/(nG+1)
+    deltaG = (b-a)/nG
     #print(deltaG, nG)
     yG[:,0,:] = np.array([i * np.ones(K) for i in y0])
     xF = np.zeros((nG, int(nF/nG)+1))
