@@ -132,7 +132,7 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
             yG[0,i+1,k], yG[1,i+1,k],yG[2,i+1,k] = coarseEval(G, deltaG, nG, yG_correct[0,i,k], yG_correct[1,i,k], yG_correct[2,i,k], f)
             #print(corr[:,i,-1,k])
             yG_correct[:,i+1,k] = yG[:,i+1,k] - yG[:,i+1,k-1] + corr[:,i,-1,k]
-    
+
     for i in range(K):
         ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
         ax1.plot(xG[1:], yG_correct[0,1:,i], '-o', lw=1.5, label="x")
@@ -179,11 +179,11 @@ def fineRes(a,b,nF,y0,f,F):
     #y0 = [20,5,-5]
     #f = lorenz63
     #F = lorenz_rk4
-    xF = np.linspace(a,b,nF)
-    yF = np.zeros((3,nF))
+    xF = np.linspace(a,b,(nF+1))
+    yF = np.zeros((3,(nF+1)))
     yF[:,0] = np.array([i for i in y0])
     deltaF = xF[1] - xF[0]
-    for i in range(1,nF):
+    for i in range(1,nF+1):
         yF[0,i], yF[1,i],yF[2,i] = fineEval(F, deltaF, nF, yF[0,i-1], yF[1,i-1], yF[2,i-1], f)
     
     ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
@@ -207,8 +207,8 @@ def main():
     b = 10.
     nG = 180
     nF = 14400 
-    K = 20 
-    y0 = [20,5,-5]
+    K = 20
+    y0 = [5,-5,20]
     f = lorenz63
     G = lorenz_rk4
     F = lorenz_rk4
