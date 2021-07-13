@@ -149,7 +149,7 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
         ax1.legend()
         ax2.legend()
         ax3.legend()
-        plt.savefig(f"iteration_{i}.png")
+        plt.savefig(f"tutorial/figs/iteration_{i}.png")
         plt.show()
 
     for i in range(K):
@@ -165,7 +165,7 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
         ax1.legend()
         ax2.legend()
         ax3.legend()
-        plt.savefig(f"iteration_diff{i}.png")
+        plt.savefig(f"tutorial/figs/iteration_diff{i}.png")
         plt.show()
 
 
@@ -198,7 +198,7 @@ def fineRes(a,b,nF,y0,f,F):
     ax1.legend()
     ax2.legend()
     ax3.legend()
-    plt.savefig(f"fineres.png")
+    plt.savefig(f"tutorial/figs/fineres.png")
     plt.show()
 
 
