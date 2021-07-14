@@ -2,34 +2,47 @@ from typing import Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import scipy.optimize as optimize
 
 NU = 0.02
-PLOT_ITERATION = True
+PLOT_ITERATION = False
+
+def burgers_f(u, dx, nu, extra_out=False):
+    u_iplus = np.roll(u, -1)
+    u_iminus = np.roll(u, 1)
+    result = -u*(u_iplus - u_iminus)/(2*dx) + nu*(u_iplus - 2*u + u_iminus)/dx**2
+    result[0] = 0
+    result[-1] = 0
+    
+    if extra_out:
+        return (result, u_iplus, u_iminus)
+    return result
+
+def burgers_scipy_func(u_nplus, u_n, dt, dx, nu):
+    zero = u_nplus - u_n - dt*burgers_f(u_nplus, dx, nu)
+    return zero
+
+def burgers_scipy(t, u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None):
+    u_nplus = optimize.fsolve(burgers_scipy_func, u_n, (u_n, dt, dx, nu))
+    burgers_scipy_func(u_nplus, u_n, dt, dx, nu)
+    return u_nplus
 
 def burgers(t, u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None):
-    print('\nt:', t)
-    print(u_n)
     u_k = u_n
     if PLOT_ITERATION:
         fig = plt.figure()
         fig.suptitle(f'Time: {t}')
         ax = fig.subplots(max_iterations+1, 1)
     for i in range(max_iterations):
-        if PLOT_ITERATION:
-            ax[i].plot(x_vals, u_k)
-        # u_k_iplus = np.pad(u_k, (0,1), 'reflect', reflect_type='odd')[1:]
-        # u_k_iminus = np.pad(u_k, (1,0), 'reflect', reflect_type='odd')[:-1]
-        u_k_iplus = np.roll(u_k, -1)
-        u_k_iminus = np.roll(u_k, 1)
-        if PLOT_ITERATION:
-            ax[i].plot(x_vals, u_k_iplus - u_k_iminus)
-            ax[i].plot(x_vals, u_k_iplus - 2*u_k + u_k_iminus)
         u_kminus = u_k
-        u_k = u_n - dt*u_k*(u_k_iplus - u_k_iminus)/(2*dx) + dt*nu*(u_k_iplus - 2*u_k + u_k_iminus)/dx**2
-        u_k[0] = 0
-        u_k[-1] = 0
-        # print(u_k-u_kminus)
-        print(max(abs(u_k-u_kminus)))
+        if PLOT_ITERATION:
+            f, plus, minus = burgers_f(u_k, dx, nu, True)
+            ax[i].plot(x_vals, u_k)
+            ax[i].plot(x_vals, plus - minus)
+            ax[i].plot(x_vals, plus - 2*u_k + minus)
+        else:
+            f = burgers_f(u_k, dx, nu)
+        u_k = u_n + dt*f
         if max(abs(u_k-u_kminus)) < tol:
             break
     if PLOT_ITERATION:
@@ -37,36 +50,7 @@ def burgers(t, u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None):
         plt.show()
     return u_k
 
-def burgers2(t, u_n, dt, dx, nu=0.02, tol=1e-5, iterations=10, x_vals=None):
-    print('\nt:', t)
-    print(u_n)
-    u_k = u_n
-    if PLOT_ITERATION:
-        fig = plt.figure()
-        fig.suptitle(f'Time: {t}')
-        ax = fig.subplots(iterations+1, 1)
-    num_vals = len(u_n)
-    for i in range(iterations):
-        if PLOT_ITERATION:
-            ax[i].plot(x_vals, u_k)
-        u_kplus = np.empty_like(u_k)
-        for j in range(num_vals):
-            if j == 0 or j == num_vals - 1:
-                u_kplus[j] = 0
-                continue
-            u_kplus[j] = u_n[j] - dt*u_k[j]*(u_k[j+1] - u_k[j-1])/(2*dx) + dt*nu*(u_k[j+1] - 2*u_k[j] + u_k[j-1])/dx**2
-        print(max(abs(u_kplus-u_k)))
-        if max(abs(u_kplus-u_k)) < tol:
-            break
-        u_k = u_kplus
-    if PLOT_ITERATION:
-        ax[iterations].plot(x_vals, u_k)
-        plt.show()
-    return u_k
-    
-
-def solve_burgers(t_range : Tuple[float, float],
-                  x_vals, num_t, x0, nu):
+def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu):
     t_vals = np.linspace(*t_range, num_t, False)
     num_x = len(x_vals)
     u_vals = np.zeros((num_t, num_x))
@@ -76,7 +60,7 @@ def solve_burgers(t_range : Tuple[float, float],
     u_vals[0, :] = x0
     
     for i in range(1, num_t):
-        u_vals[i, :] = burgers(t_vals[i], u_vals[i-1, :], dt, dx, nu, x_vals=x_vals)
+        u_vals[i, :] = burgers_scipy(t_vals[i], u_vals[i-1, :], dt, dx, nu, x_vals=x_vals)
     
     # Plotting
     fig = plt.figure()
@@ -95,5 +79,5 @@ def solve_burgers(t_range : Tuple[float, float],
 if __name__ == '__main__':
     x_vals = np.linspace(0, 1, 101)
     x_initial = np.sin(2*np.pi*x_vals)
-    t_max = 0.2
+    t_max = 1
     solve_burgers((0,t_max), x_vals, int(100*t_max), x_initial, NU)
