@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-NU = 0.2
+NU = 0.02
 PLOT_ITERATION = True
 
 def burgers(t, u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None):
@@ -15,7 +15,8 @@ def burgers(t, u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None):
         fig.suptitle(f'Time: {t}')
         ax = fig.subplots(max_iterations+1, 1)
     for i in range(max_iterations):
-        if PLOT_ITERATION: ax[i].plot(x_vals, u_k)
+        if PLOT_ITERATION:
+            ax[i].plot(x_vals, u_k)
         # u_k_iplus = np.pad(u_k, (0,1), 'reflect', reflect_type='odd')[1:]
         # u_k_iminus = np.pad(u_k, (1,0), 'reflect', reflect_type='odd')[:-1]
         u_k_iplus = np.roll(u_k, -1)
@@ -46,7 +47,8 @@ def burgers2(t, u_n, dt, dx, nu=0.02, tol=1e-5, iterations=10, x_vals=None):
         ax = fig.subplots(iterations+1, 1)
     num_vals = len(u_n)
     for i in range(iterations):
-        if PLOT_ITERATION: ax[i].plot(x_vals, u_k)
+        if PLOT_ITERATION:
+            ax[i].plot(x_vals, u_k)
         u_kplus = np.empty_like(u_k)
         for j in range(num_vals):
             if j == 0 or j == num_vals - 1:

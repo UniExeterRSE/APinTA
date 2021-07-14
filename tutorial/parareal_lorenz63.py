@@ -4,6 +4,8 @@ Parareal algorithm implementation to solve Lorenz 63
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
+import parareal as pr
+from brusselator import RK4
 
 def lorenz63(x,y,z,sigma=10,beta=8/3,rho=28):
     """
@@ -213,8 +215,12 @@ def main():
     G = lorenz_rk4
     F = lorenz_rk4
 
-    parareal(a,b,nG,nF,K,y0,f,G,F)
+    # parareal(a,b,nG,nF,K,y0,f,G,F)
     #fineRes(a,b,nF,y0,f,F)
+    
+    t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(a, b, nG, nF//nG, K, y0, lorenz63, RK4, RK4, True)
+    # pr.plot_comp(t_gross, x_gross_corr, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor', '-o')
+    pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor')
 
 if __name__ == "__main__":
     main()
