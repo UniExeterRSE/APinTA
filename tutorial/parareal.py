@@ -9,7 +9,7 @@ PARALLEL_PROCESSES = 5
 
 def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0: Iterable[float],
              coarse_integ: Callable, fine_integ: Callable, func: Optional[Callable] = None,
-             func_args = (),full_output: bool = False, **func_kwargs):
+             integ_args = (), full_output: bool = False, **integ_kwargs):
     """
     a : float
         start of integration
@@ -25,10 +25,16 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0:
         Intial conditions
     func : (*variables, **func_kwargs) -> variables_dot or None
         function to be integrated over. Returns the time derivate of each variable
-    coarse_integ/fine_integ : (func, dt, *func_args, n, x0, **func_kwargs) -> np.array or
-                              (dt, *func_args, n, x0, **func_kwargs) -> np.array if func = None
+    coarse_integ/fine_integ : (func, dt, *integ_args, n, x0, **integ_kwargs) -> np.array or
+                              (dt, *integ_args, n, x0, **integ_kwargs) -> np.array if func = None
         Integrates the function coarsely/finely respectively. Given an x0 array of length M, must
         return an array of length M x n.
+    integ_args : Tuple
+        Arguments to be passed to the integrating functions
+    full_output : bool = False
+        Whether to return the fine results as well as the coarse results
+    **integ_kwargs : keyword arguments
+        Keyword arguments to be passed to the integrating functions
     """
     n_vars = len(x0)
     x0 = np.array(x0)
@@ -46,11 +52,11 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0:
     # Creates a function that does the fine integration requiring only the inital conditions
     # as a parameter
     if func is None:
-        fine_int_func = partial(fine_integ, dt_fine, *func_args, n_fine, **func_kwargs)
-        coarse_int_func = partial(coarse_integ, dt_gross, *func_args, **func_kwargs)
+        fine_int_func = partial(fine_integ, dt_fine, *integ_args, n_fine, **integ_kwargs)
+        coarse_int_func = partial(coarse_integ, dt_gross, *integ_args, **integ_kwargs)
     else:
-        fine_int_func = partial(fine_integ, func, dt_fine, *func_args, n_fine, **func_kwargs)
-        coarse_int_func = partial(coarse_integ, func, dt_gross, *func_args, **func_kwargs)
+        fine_int_func = partial(fine_integ, func, dt_fine, *integ_args, n_fine, **integ_kwargs)
+        coarse_int_func = partial(coarse_integ, func, dt_gross, *integ_args, **integ_kwargs)
     
     x_gross = np.empty((n_vars, len(t_gross), iterations))
     x_fine_corr = np.empty((n_vars, n_gross, n_fine, iterations))
@@ -75,7 +81,7 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0:
         else:
             # Loop done in parallel
             with Pool(PARALLEL_PROCESSES) as p:
-                integ_map = p.map(fine_int_func, x_fine_corr[:, :, 0, k].T) # Transposed to iterate over each coarse section
+                integ_map = p.map(fine_int_func, x_fine_corr[:, :, 0, k].swapaxes(0, 1)) # Axes swapped to iterate over each coarse section
             x_fine_corr[:, :, :, k] = np.array(list(integ_map)).swapaxes(0, 1) # Swap axes back again
             
         # Correcting

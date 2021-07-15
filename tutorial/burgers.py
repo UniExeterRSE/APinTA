@@ -109,7 +109,7 @@ if __name__ == '__main__':
     
     para_iterations = 10
     t_coarse, u_coarse, t_fine, u_fine = pr.parareal(0, t_max, t_stepsG, t_stepsF, para_iterations, x_initial,
-                                                     integ_burgers, integ_burgers, func_args=(dx,), nu=NU, full_output=True)
+                                                     integ_burgers, integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
     
     plot_burgers(t_coarse, x_vals, u_coarse[:, :, 0].T, f'Coarse Burgers : Iteration 0')
     for k in range(1, para_iterations):
