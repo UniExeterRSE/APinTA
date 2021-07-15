@@ -29,7 +29,7 @@ def burgers_scipy(u_n, dt, dx, nu=0.02, **_):
     burgers_scipy_func(u_nplus, u_n, dt, dx, nu)
     return u_nplus
 
-def burgers(u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None, t=None):
+def burgers_fixed_point(u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None, t=None):
     u_k = u_n
     if PLOT_ITERATION:
         fig = plt.figure()
@@ -76,11 +76,11 @@ def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu):
         
     return t_vals, u_vals
     
-def plot_burgers(t, x, u, title=None):
+def plot_burgers(t, x, u, title=None, save_name=None):
     shape0, shape1 = u.shape
-    plot_burgers_fine(t.reshape(1, shape0), x, u.reshape(shape0, 1, shape1), title)
+    plot_burgers_fine(t.reshape(1, shape0), x, u.reshape(shape0, 1, shape1), title, save_name)
     
-def plot_burgers_fine(t_fine, x, u_fine, title=None):
+def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(projection='3d')
     
@@ -94,6 +94,8 @@ def plot_burgers_fine(t_fine, x, u_fine, title=None):
         ax.set_title(title)
     
     fig.colorbar(surface)
+    if save_name:
+        plt.savefig(f"tutorial/figs/burgers/{save_name}.png")
     
     plt.show()
     
@@ -111,7 +113,7 @@ if __name__ == '__main__':
     t_coarse, u_coarse, t_fine, u_fine = pr.parareal(0, t_max, t_stepsG, t_stepsF, para_iterations, x_initial,
                                                      integ_burgers, integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
     
-    plot_burgers(t_coarse, x_vals, u_coarse[:, :, 0].T, f'Coarse Burgers : Iteration 0')
+    plot_burgers(t_coarse, x_vals, u_coarse[:, :, 0].T, f'Coarse Burgers : Iteration 0', 'coarse_iteration0')
     for k in range(1, para_iterations):
-        plot_burgers_fine(t_fine, x_vals, u_fine[:, :, :, k].swapaxes(0,2), f'Fine Burgers : Iteration {k}')
-        plot_burgers(t_coarse, x_vals, u_coarse[:, :, k].T, f'Coarse Burgers : Iteration {k}')
+        plot_burgers_fine(t_fine, x_vals, u_fine[:, :, :, k].swapaxes(0,2), f'Fine Burgers : Iteration {k}', f'fine_iteration{k}')
+        plot_burgers(t_coarse, x_vals, u_coarse[:, :, k].T, f'Coarse Burgers : Iteration {k}', f'coarse_iteration{k}')

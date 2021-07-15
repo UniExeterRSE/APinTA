@@ -55,9 +55,8 @@ def main():
     
     draw_plots2d(x, y, t, 'Brusselator')
     
-    t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(time_range[0], time_range[1], time_steps_gross, time_steps_fine, 6, initial_cond,
-                brusselator, RK4, RK4, True, A=A, B=B)
-    pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y'], 'Lorenz attractor')
+    t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(time_range[0], time_range[1], time_steps_gross, time_steps_fine, 6, initial_cond, RK4, RK4, brusselator, full_output=True, A=A, B=B)
+    pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y'], 'Brusselator')
     pr.plot_2d_phase(x_gross_corr, ['x', 'y'], 'Brusselator', (x, y))
 
     
