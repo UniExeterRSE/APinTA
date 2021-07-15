@@ -1,4 +1,4 @@
-from typing import Callable, Iterable
+from typing import Callable, Sequence
 import numpy as np
 import matplotlib.pyplot as plt
 import parareal as pr
@@ -6,7 +6,7 @@ import parareal as pr
 A = 1
 B = 3
 
-def RK4(func: Callable, dt: float, n: int, x0: Iterable[float], **func_kwargs):
+def RK4(func: Callable, dt: float, n: int, x0: Sequence[float], **func_kwargs):
     param_n = len(x0)
     x_n = np.empty((param_n, n))
     x_n[:, 0] = x0

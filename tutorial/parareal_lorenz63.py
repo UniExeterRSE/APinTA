@@ -6,6 +6,7 @@ import sys
 import matplotlib.pyplot as plt
 import parareal as pr
 from brusselator import RK4
+from pr_animation import PRanimation3d
 
 def lorenz63(x,y,z,sigma=10,beta=8/3,rho=28):
     """
@@ -209,7 +210,7 @@ def main():
     b = 10.
     nG = 180
     nF = 14400 
-    K = 20
+    K = 3#20
     y0 = [5,-5,20]
     f = lorenz63
     G = lorenz_rk4
@@ -220,7 +221,10 @@ def main():
     
     t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(a, b, nG, nF//nG, K, y0, RK4, RK4, lorenz63, full_output=True)
     # pr.plot_comp(t_gross, x_gross_corr, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor', '-o')
-    pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor')
+    # pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor')
+    # pr.plot_2d_phase(x_gross_corr[:2, :, :], ['x', 'y'], 'Lorenz attractor')
+    animator = PRanimation3d(x_gross_corr, x_fine_corr, [[-20,20], [-20,20], [0,40]], ['x', 'y', 'z'], 20)
+    animator.animate('Lorenz_attactor.gif', 30)
 
 if __name__ == "__main__":
     main()

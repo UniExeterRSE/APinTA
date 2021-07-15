@@ -1,4 +1,4 @@
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional, Sequence
 import numpy as np
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
@@ -7,7 +7,7 @@ from functools import partial
 # Number of processes to use when running fine integration in parallel. Runs in serial if set to 0
 PARALLEL_PROCESSES = 5
 
-def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0: Iterable[float],
+def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x_initial: Sequence[float],
              coarse_integ: Callable, fine_integ: Callable, func: Optional[Callable] = None,
              integ_args = (), full_output: bool = False, **integ_kwargs):
     """
@@ -21,7 +21,7 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0:
         number fo fine steps within each gross step
     iterations : int
         number of parallel iterations to be done
-    x0 : Iterable[float]
+    x0 : Sequence[float]
         Intial conditions
     func : (*variables, **func_kwargs) -> variables_dot or None
         function to be integrated over. Returns the time derivate of each variable
@@ -36,8 +36,8 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0:
     **integ_kwargs : keyword arguments
         Keyword arguments to be passed to the integrating functions
     """
-    n_vars = len(x0)
-    x0 = np.array(x0)
+    n_vars = len(x_initial)
+    x0 = np.array(x_initial)
     # Add 1 to n_fine as we always want it with one extra to include the endpoint
     n_fine += 1
     
@@ -160,7 +160,7 @@ def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
         axs = fig.subplots(1, 1)
         if comparison is not None:
             axs.plot(comparison[0], comparison[1], *plot_args, **plot_kwargs)
-        axs.plot(x_gross[0, :, i], x_gross[1, :, i], 'o', *plot_args, **plot_kwargs)
+        axs.plot(x_gross[0, :, i], x_gross[1, :, i], 'o-', *plot_args, **plot_kwargs)
         
         axs.set_xlabel(var_names[0])
         axs.set_ylabel(var_names[1])
