@@ -218,7 +218,7 @@ def main():
     # parareal(a,b,nG,nF,K,y0,f,G,F)
     #fineRes(a,b,nF,y0,f,F)
     
-    t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(a, b, nG, nF//nG, K, y0, lorenz63, RK4, RK4, True)
+    t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(a, b, nG, nF//nG, K, y0, RK4, RK4, lorenz63, full_output=True)
     # pr.plot_comp(t_gross, x_gross_corr, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor', '-o')
     pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor')
 

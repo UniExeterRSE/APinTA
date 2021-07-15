@@ -1,4 +1,4 @@
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 import numpy as np
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
@@ -7,18 +7,28 @@ from functools import partial
 # Number of processes to use when running fine integration in parallel. Runs in serial if set to 0
 PARALLEL_PROCESSES = 5
 
-def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int,
-             x0: Iterable[float], func: Callable, coarse_integ: Callable,
-             fine_integ: Callable, full_output: bool = False, **func_kwargs):
+def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x0: Iterable[float],
+             coarse_integ: Callable, fine_integ: Callable, func: Optional[Callable] = None,
+             func_args = (),full_output: bool = False, **func_kwargs):
     """
-    a : float - start of integration
-    b : float - end of integration
-    n_gross : int - number of gross steps
-    n_fine : int - number fo fien steps within each gross step
-    iterations : int - number of parallel iterations to be done
-    x0 : Iterable[float] : Intial conditions
-    func : (*variables, **func_kwargs) -> variables_dot : function to be integrated over. Returns the time derivate of each variable
-    coarse_integ/fine_integ : (func, dt, n, x0, **func_kwargs) -> np.array - Integrates the function coarsely/finely respectively
+    a : float
+        start of integration
+    b : float
+        end of integration
+    n_gross : int
+        number of gross steps
+    n_fine : int
+        number fo fine steps within each gross step
+    iterations : int
+        number of parallel iterations to be done
+    x0 : Iterable[float]
+        Intial conditions
+    func : (*variables, **func_kwargs) -> variables_dot or None
+        function to be integrated over. Returns the time derivate of each variable
+    coarse_integ/fine_integ : (func, dt, *func_args, n, x0, **func_kwargs) -> np.array or
+                              (dt, *func_args, n, x0, **func_kwargs) -> np.array if func = None
+        Integrates the function coarsely/finely respectively. Given an x0 array of length M, must
+        return an array of length M x n.
     """
     n_vars = len(x0)
     x0 = np.array(x0)
@@ -33,6 +43,15 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int,
     dt_gross = (b - a)/n_gross
     dt_fine = t_fine[0,1] - t_fine[0,0]
     
+    # Creates a function that does the fine integration requiring only the inital conditions
+    # as a parameter
+    if func is None:
+        fine_int_func = partial(fine_integ, dt_fine, *func_args, n_fine, **func_kwargs)
+        coarse_int_func = partial(coarse_integ, dt_gross, *func_args, **func_kwargs)
+    else:
+        fine_int_func = partial(fine_integ, func, dt_fine, *func_args, n_fine, **func_kwargs)
+        coarse_int_func = partial(coarse_integ, func, dt_gross, *func_args, **func_kwargs)
+    
     x_gross = np.empty((n_vars, len(t_gross), iterations))
     x_fine_corr = np.empty((n_vars, n_gross, n_fine, iterations))
     
@@ -42,12 +61,9 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int,
     x_fine_corr[:, 0, 0, :] = x0_repeated
     
     # Initial coarse integration
-    x_gross[:, :, 0] = coarse_integ(func, dt_gross, n_gross+1, x_gross[:, 0, 0], **func_kwargs)    
+    x_gross[:, :, 0] = coarse_int_func(n_gross+1, x_gross[:, 0, 0])    
     
     x_gross_corr = x_gross.copy()
-    # Creates a function that does the fine integration requiring only the inital conditions
-    # as a parameter
-    fine_int_func = partial(fine_integ, func, dt_fine, n_fine, **func_kwargs)    
     
     for k in range(1, iterations):
         print(f'Iteration {k}')
@@ -55,16 +71,16 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int,
         if PARALLEL_PROCESSES == 0:
             # Loop done in serial
             for i in range(n_gross):
-                x_fine_corr[:, i, :, k] = fine_integ(func, dt_fine, n_fine, x_fine_corr[:, i, 0, k], **func_kwargs)
+                x_fine_corr[:, i, :, k] = fine_int_func(x_fine_corr[:, i, 0, k])
         else:
             # Loop done in parallel
             with Pool(PARALLEL_PROCESSES) as p:
-                integ_map = p.map(fine_int_func, x_fine_corr[:, :, 0, k].T)
-            x_fine_corr[:, :, :, k] = np.array(list(integ_map)).swapaxes(0, 1)
+                integ_map = p.map(fine_int_func, x_fine_corr[:, :, 0, k].T) # Transposed to iterate over each coarse section
+            x_fine_corr[:, :, :, k] = np.array(list(integ_map)).swapaxes(0, 1) # Swap axes back again
             
         # Correcting
         for t in range(n_gross):
-            x_gross[:, t+1, k] = coarse_integ(func, dt_gross, 2, x_gross_corr[:, t, k], **func_kwargs)[:, -1]
+            x_gross[:, t+1, k] = coarse_int_func(2, x_gross_corr[:, t, k])[:, -1]
             x_gross_corr[:, t+1, k] = x_gross[:, t+1, k] - x_gross[:, t+1, k-1] + x_fine_corr[:, t, -1, k]
           
     if full_output:
@@ -105,7 +121,7 @@ def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = N
         for x in range(num_vars):
             var_names[x] = f'Variable {x}'
             
-    for i in range(iterations):
+    for i in range(1, iterations):
         fig = plt.figure(figsize=(10,8))
         if title is None:
             fig.suptitle(f'Iteration {i}')
