@@ -1,7 +1,9 @@
 from typing import Callable, Sequence
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import parareal as pr
+from pr_animation import PRanimation2D
 
 A = 1
 B = 3
@@ -45,19 +47,21 @@ def draw_plots2d(x, y, t, title):
     plt.show()
     
 def main():
-    time_steps_fine = 640
+    time_steps_fine = 20
     time_steps_gross = 32
     time_range = [0, 12]
     initial_cond = (0,1)
-    dt = 12/time_steps_fine
+    dt = time_range[1]/(time_steps_fine*time_steps_gross)
     t = np.arange(time_range[0], time_range[1], dt)
-    x, y = RK4(brusselator, dt, time_steps_fine, initial_cond, A=A, B=B)
+    x, y = RK4(brusselator, dt, time_steps_fine*time_steps_gross, initial_cond, A=A, B=B)
     
     draw_plots2d(x, y, t, 'Brusselator')
     
     t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(time_range[0], time_range[1], time_steps_gross, time_steps_fine, 6, initial_cond, RK4, RK4, brusselator, full_output=True, A=A, B=B)
     pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y'], 'Brusselator')
     pr.plot_2d_phase(x_gross_corr, ['x', 'y'], 'Brusselator', (x, y))
+    animator = PRanimation2D(x_gross_corr, x_fine_corr, [[0,4], [0.5, 5]], ['x', 'y'], 10, title='Brusselator', line_colour=cm.get_cmap('YlOrRd_r'))
+    animator.animate('tutorial/figs/brusselator.gif', 10)
 
     
 if __name__ == '__main__':

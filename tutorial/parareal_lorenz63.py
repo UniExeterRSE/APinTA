@@ -2,11 +2,11 @@
 Parareal algorithm implementation to solve Lorenz 63
 """
 import numpy as np
-import sys
 import matplotlib.pyplot as plt
 import parareal as pr
 from brusselator import RK4
-from pr_animation import PRanimation3d
+import pr_animation as prAnimate
+import matplotlib.cm as cm
 
 def lorenz63(x,y,z,sigma=10,beta=8/3,rho=28):
     """
@@ -207,10 +207,10 @@ def fineRes(a,b,nF,y0,f,F):
 
 def main():
     a = 0
-    b = 10.
-    nG = 180
-    nF = 14400 
-    K = 3#20
+    b = 5.      #10.
+    nG = 40     #180
+    nF = 1440   #14400
+    K = 10      #20
     y0 = [5,-5,20]
     f = lorenz63
     G = lorenz_rk4
@@ -223,8 +223,12 @@ def main():
     # pr.plot_comp(t_gross, x_gross_corr, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor', '-o')
     # pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor')
     # pr.plot_2d_phase(x_gross_corr[:2, :, :], ['x', 'y'], 'Lorenz attractor')
-    animator = PRanimation3d(x_gross_corr, x_fine_corr, [[-20,20], [-20,20], [0,40]], ['x', 'y', 'z'], 20)
-    animator.animate('Lorenz_attactor.gif', 30)
+    animator3d = prAnimate.PRanimation3D(x_gross_corr, x_fine_corr, [[-20,20], [-25,25], [0,40]], ['x', 'y', 'z'], 5,
+                                         title='Lorenz attractor', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
+    animator3d.animate('tutorial/figs/Lorenz_attactor3d_coloureddots.gif', 10)
+    animator2d = prAnimate.PRanimation2D(x_gross_corr[:2], x_fine_corr[:2], [[-20,20], [-25,25]], ['x', 'y'], 5,
+                                         title='Lorenz attractor', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
+    animator2d.animate('tutorial/figs/Lorenz_attactor2d_coloureddots.gif', 10)
 
 if __name__ == "__main__":
     main()

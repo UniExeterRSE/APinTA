@@ -160,7 +160,7 @@ def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
         axs = fig.subplots(1, 1)
         if comparison is not None:
             axs.plot(comparison[0], comparison[1], *plot_args, **plot_kwargs)
-        axs.plot(x_gross[0, :, i], x_gross[1, :, i], 'o-', *plot_args, **plot_kwargs)
+        axs.plot(x_gross[0, :, i], x_gross[1, :, i], 'o', *plot_args, **plot_kwargs)
         
         axs.set_xlabel(var_names[0])
         axs.set_ylabel(var_names[1])
