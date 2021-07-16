@@ -21,13 +21,12 @@
 
 \section{About this document}
 
-This document will become the profiling report deliverable. Profiling is deliverable 5.1.1 and builds are deliverable 5.1.2. \\
-
-\textbf{Q: What is the scope: are we only considering Firedrake? We could separate the building and profiling parts if the profiling needs to be used for other applications.}
+This document will become the profiling report deliverable. Profiling is deliverable 5.1.1 and builds are deliverable 5.1.2.
+This report primarily focusses on Firedrake but the profiling tools evaluated could be used for profiling other codes used by the project.
 
 \section{Target platforms}
 
-The target HPC platforms for the project are Archer-2 (national tier-1), Isambard (national tier-2) and Isca (local tier-3). Isambard has two separate systems based on the ARM64 architecture: the XCI system which is an established production system, and the A64FX system which is a newer system. The A64FX system should be considered a stretch objective as the hardware and software are less well known to us. We have also purchased a local server which is designed to be similar to an Archer compute node (although it will run Ubuntu which will make it easier to build Firedrake). An overview of the hardware in the target platforms is shown in Table~\ref{tab:hardware}.
+The target HPC platforms for the project are Archer-2 (national tier-1), Isambard (national tier-2) and Isca (local tier-3). Isambard has two separate systems based on the ARM64 architecture: the XCI system which is an established production system, and the A64FX system which is a newer system. The A64FX system should be considered a stretch objective as the hardware and software are less well known to us. We have also purchased a local server which is designed to be similar to an Archer compute node, although it will run Ubuntu which will make it easier to build Firedrake. The server is in some sense a reference installation as it should use an unmodified Firedrake install script. Installations on other platforms will use non-standard components (e.g. MPI and maths libraries). An overview of the hardware in the target platforms is shown in Table~\ref{tab:hardware}.
 %
 \begin{table}[htp]
 \begin{center}
@@ -65,7 +64,7 @@ Server         & GNU                     & MPICH?          & ???             & N
 \end{tabular}
 \end{center}
 \caption{Software stacks on target platforms. AOCC is the AMD Optimizing Compiler Collection. Intel MPI and MVAPICH are MPICH derivatives which support an Infiniband interconnect.
-\textbf{Note: I can't find a Cray PAT module on the A64FX- should there be one?}}
+The A64FX system did not appear to have a perftools module.}
 \label{tab:software}
 \end{table}
 On the Isambard A64FX system some modules are only available after running 
@@ -75,9 +74,10 @@ module use /lustre/software/aarch64/modulefiles
 
 On the Cray systems compilation is handled by wrapper scripts from the Cray Programming Environment. The wrapper script can run different compilers depending on which programming environment module is loaded at compile time (e.g. \texttt{PrgEnv-cray} calls the Cray compiler and \texttt{PrgEnv-gnu} calls the GNU compiler). The MPI library and maths library are then linked by the wrapper script. On Cray systems the standard profiling tool is Cray Performance Analysis Tools (PAT). On ARM-based Cray systems there is also the ARM/Allinea Forge profiler.
 
-The software environment on Isca is managed using Esaybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which needs to use Intel MPI.
+The software environment on Isca is managed using Esaybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which needs to use Intel MPI. \\
 
-
+\noindent
+\textbf{Recommendation: standardise on the GNU compilers for all platforms. This avoids having to manage too many different builds and takes the compiler out of the performance equation (different GCC versions notwithstanding).}
 
 \section{Builds}
 
@@ -87,14 +87,26 @@ Plan:
 \item Optimised builds on main target platforms: use optimised maths libraries but beware threading
 \end{enumerate}
 %
-Status:
-\begin{itemize}
-\item Archer2:
-\item Isambard XCI: my build is currently failing due to VTK not building.
-\item Server:
-\item Isca:
-\item Isambard A64FX
-\end{itemize}
+
+\begin{table}[htp]
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+Platform       &  Build status     & Profiling status \\
+\hline
+Archer2        &  ??               & \\
+Isambard XCI   &  working build    & \\
+Server         &  ??               & \\
+Isca           &  ??               & \\
+Isambard A64FX &  ??               & \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Status of Firedrake builds and profiling for the target platforms}
+\label{default}
+\end{table}%
+
+
 
 
 \section{Profiling}
@@ -128,11 +140,18 @@ Although this is a Cray tool it does work with compilers other than Cray (the ot
 \item Cray PAT has two modes: standard and ``lite''
 \item There is a graphical viewer (Apprentice 2) which reads the profiling output
 \item Can view a time line from a full trace
+\end{itemize}
+
+It's not clear how to use Cray PAT with python/Firedrake.
+
+See also \url{https://docs.nersc.gov/tools/performance/craypat/}.
 
 \subsection{ARM Forge}
 
+ARM MAP is the profiler which is part of the ARM Forge suite and it can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}.
+
 \subsection{Intel Parallel Studio}
 
-\end{itemize}
+Previously working on Isca with the Intel build. Intel MPI is required for the Trace Analyzer and Collector profiler to work.
 
 \end{document}
