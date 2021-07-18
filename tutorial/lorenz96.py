@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Lorenz96(object):
     def __init__(self, K=1,J=1,I=1,nlevels=1,h=None,g=None,
@@ -110,20 +111,65 @@ class Lorenz96(object):
         return x_n, y_n, z_n
         
 
-    def l96(self, X,Y,Z):
-       """
-       The L96 model depending on the number of levels
-       """
-       Y_next,Z_next = 0.,0.  
-       X_next = np.roll(X,1)*(np.roll(X,-1) - np.roll(X,2)) - X + self.F
-       if self.nlevels > 1:
-           X_next -= (self.h*self.c/self.b)*Y.sum(axis=1)
-           Y_next = (self.c*self.b*np.roll(Y,-1)*np.roll(Y,-2) - np.roll(Y,1)) - self.c*Y + (self.h*self.c/self.b)*X[:,None]
-       if self.nlevels > 2:
-           Y_next -= (self.h*self.e/self.d)*Z.sum(axis=2)
-           Z_next = self.e*self.d*np.roll(Z,1)*(np.roll(Z,-1) - np.roll(Z,2)) - self.g*self.e*Z + (self.h*self.e/self.d)*Y[:,:,None]
-       return X_next, Y_next, Z_next 
+    def _l96_one(self, X, Y, Z):
+        """
+        single level l96
+        """
+        Y_next,Z_next = 0.,0.  
+        X_next = np.roll(X,1)*(np.roll(X,-1) - np.roll(X,2)) - X + self.F
+        return X_next, Y_next, Z_next
 
+    def _l96_two(self, X, Y, Z):
+        """
+        two level l96
+        """
+        Y_next,Z_next = 0.,0.  
+        X_next = np.roll(X,1)*(np.roll(X,-1) - np.roll(X,2)) - X + self.F
+        X_next -= (self.h*self.c/self.b)*Y.sum(axis=1)
+        Y_next = -self.c*self.b*np.roll(Y,-1)*(np.roll(Y,-2) - np.roll(Y,1)) - self.c*Y + (self.h*self.c/self.b)*X[:,None]
+        return X_next, Y_next, Z_next
+
+    def _l96_three(self, X, Y, Z):
+        """
+        three level l96
+        """
+        Y_next,Z_next = 0.,0.  
+        X_next = np.roll(X,1)*(np.roll(X,-1) - np.roll(X,2)) - X + self.F
+        X_next -= (self.h*self.c/self.b)*Y.sum(axis=1)
+        Y_next = -self.c*self.b*np.roll(Y,-1)*(np.roll(Y,-2) - np.roll(Y,1)) - self.c*Y + (self.h*self.c/self.b)*X[:,None]
+        Y_next -= (self.h*self.e/self.d)*Z.sum(axis=2)
+        Z_next = self.e*self.d*np.roll(Z,1)*(np.roll(Z,-1) - np.roll(Z,2)) - self.g*self.e*Z + (self.h*self.e/self.d)*Y[:,:,None]
+        return X_next, Y_next, Z_next
+
+
+    def l96(self, X,Y,Z):
+        """
+        The L96 model depending on the number of levels
+        """
+        if self.nlevels == 1:
+            X_next, Y_next, Z_next = self._l96_one(X,Y,Z)
+        elif self.nlevels == 2:
+            X_next, Y_next, Z_next = self._l96_two(X,Y,Z)
+        elif self.nlevels == 3:
+            X_next, Y_next, Z_next = self._l96_three(X,Y,Z) 
+         
+        return X_next, Y_next, Z_next 
+
+def plot_l96(X,Y,Z):
+    """
+    Plot X,Y,Z variables
+    """
+    nvars = X.shape[-1]
+    nrows, ncols = 4, nvars//2
+    fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
+    for i in range(nvars):
+        axs[i].plot(X[:,i])
+        #axs[i].plot(Y[:,0, i])
+        #axs[i].plot(Z[:,0, 0, i])
+    plt.suptitle('X variables')
+    plt.show()
+    
+    
 def main():
     """
     """
@@ -132,21 +178,28 @@ def main():
     I = 8
     nlevels = 3
     h, g = 1., 1.
-    b, c, e, d = 10., 10., 10., 10.
+    b, c, e, d = 1., 1., 1., 1.
     F = 20.
 
     
-    #L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
-    L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+    L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
+    #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
+    #L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
     x,y,z = L96.X_coord, L96.Y_coord, L96.Z_coord
-    dt = 0.001
-    for i in range(10):
+    npoints = 10000
+    t_start, t_end = 0,10
+    dt = (t_end - t_start)/npoints 
+    X_out = np.zeros((npoints, K))
+    Y_out = np.zeros((npoints, K, J))
+    Z_out = np.zeros((npoints, K, J, I))
+    for i in range(npoints):
         x_,y_,z_ = L96.rk4_step(x,y,z,dt)
+        X_out[i,:] = x_
+        Y_out[i,:] = y_
+        Z_out[i,:] = z_
         x,y,z = x_,y_,z_
-        print("X", x_)
-        print("Y", y_)
-        print("Z", z_)
-
+    plot_l96(X_out, Y_out, Z_out)
+    
 if __name__ == "__main__":
     main()
 
