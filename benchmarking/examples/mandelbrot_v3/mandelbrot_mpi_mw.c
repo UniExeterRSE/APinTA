@@ -15,8 +15,8 @@ Contact: D. Acreman, Exeter University
 #include <mpi.h>
 
 /* Number of intervals on real and imaginary axes*/
-#define N_RE 12000
-#define N_IM 8000
+#define N_RE 1200
+#define N_IM 800
 
 /* Number of iterations at each z value */
 int nIter[N_RE+1][N_IM+1];
@@ -31,7 +31,7 @@ const float z_Im_min = -1.0; /* Minimum imaginary value */
 const float z_Im_max =  1.0; /* Maximum imaginary value */
 
 /* Set to true to write out results*/
-const bool doIO = false;
+const bool doIO = true;
 const bool verbose = false;
 
 /******************************************************************************************/
@@ -149,6 +149,11 @@ int main(int argc, char *argv[]){
   int nextProc;      /* Next process to send work to */
   MPI_Status status; /* Status from MPI calls */
   int endFlag=-9999; /* Flag to indicate completion*/
+  int missingData=-6666; /* Missing data flag */
+
+  const int BUFFSIZE=N_IM+3; /* N_IM+1 points + rank + i value */
+  int buffer[BUFFSIZE];
+  int this_i;
 
   /* Timing variables */
   double start_time, end_time;
@@ -169,10 +174,10 @@ int main(int argc, char *argv[]){
     printf("Calculating Mandelbrot set with %d processes\n", nProcs);
   }
   
-  /* Initialise to nIter zero as we will use a reduce to collate results into this array*/ 
+  /* Initialise to nIter to a missing data value */ 
   for (i=0; i<N_RE+1; i++){
     for (j=0; j<N_IM+1; j++){
-      nIter[i][j]=0;
+      nIter[i][j]=-3;
     }
   }
 
@@ -191,15 +196,35 @@ int main(int argc, char *argv[]){
   if ( myRank == 0 ){
     // Hand out work to worker processes
     for (i=0; i<N_RE+1; i++){
-      // Receive request for work
-      MPI_Recv(&nextProc, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      // Receive request for work and data
+      MPI_Recv(&buffer, BUFFSIZE, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+      /* Put results into nIter */
+      nextProc=buffer[0];
+      this_i=buffer[1];
+      if (this_i != missingData){
+	for (j=0; j<N_IM+1; j++){
+	  nIter[this_i][j]=buffer[j+2];
+	}
+      }
+
       // Send i value to requesting process
       MPI_Send(&i,        1, MPI_INT, nextProc,       100,         MPI_COMM_WORLD);
     }
     // Tell all the worker processes to finish (once for each worker process = nProcs-1)
     for (i=0; i<nProcs-1; i++){
       // Receive request for work
-      MPI_Recv(&nextProc, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+      MPI_Recv(&buffer, BUFFSIZE, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+      /* Put results into nIter */
+      nextProc=buffer[0];
+      this_i=buffer[1];
+      if (this_i != missingData){
+	for (j=0; j<N_IM+1; j++){
+	  nIter[this_i][j]=buffer[j+2];
+	}
+      }
+
       // Send endFlag to finish
       MPI_Send(&endFlag,     1, MPI_INT, nextProc,       100,         MPI_COMM_WORLD);
     }
@@ -208,10 +233,17 @@ int main(int argc, char *argv[]){
   // Worker Processes
   else {
 
+    /* Initialise first send buffer. Values after [1] will be set to missing data value */
+    buffer[0]=myRank;
+    buffer[1]=missingData;
+    for(j=2; j<BUFFSIZE; j++){
+      buffer[j]=missingData;
+    }
+
     while(true){
 
-      // Send request for work
-      MPI_Send(&myRank, 1, MPI_INT, 0, 100+myRank, MPI_COMM_WORLD);
+      // Send request for work and data
+      MPI_Send(&buffer, BUFFSIZE, MPI_INT, 0, 100+myRank, MPI_COMM_WORLD);
       // Receive i value to work on
       MPI_Recv(&i,      1, MPI_INT, 0, 100       , MPI_COMM_WORLD, &status); 
 
@@ -220,15 +252,22 @@ int main(int argc, char *argv[]){
       } else {
 	calc_vals(i);
       }
-      
+
+      /* Put results in buffer ready to send to manager */
+      buffer[0]=myRank;
+      buffer[1]=i;
+      for(j=0; j<N_IM+1; j++){
+	buffer[j+2]= nIter[i][j];
+      }
+
     } // while(true)
   } // else worker process
 
   /* Communicate results so rank 1 has all the values */
-  do_communication(myRank);
+  //  do_communication(myRank);
 
   /* Write out results */
-  if (doIO && myRank==1 ){
+  if (doIO && myRank==0 ){
     if (verbose) {printf("Writing out results from process %d \n", myRank);}
     write_to_file("mandelbrot.dat");
   }
