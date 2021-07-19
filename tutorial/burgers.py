@@ -169,13 +169,17 @@ def errors_discretisation(dx_div_vals, n_fine_mult_vals, dx0, n_fine0, x_range, 
         x_vals = np.arange(x_range[0], x_range[1]+dx, dx)
         x_initial = x0_func(x_vals)
         
+        print('Doing fine integral')
         t_vals, u_vals, = solve_burgers((0, t_max), x_vals, n_fine*n_coarse, x_initial, NU)
+        print('Starting parareal')
         *_, t_fine, u_fine = pr.parareal(0, t_max, n_coarse, n_fine, iterations, x_initial, integ_burgers,
                                          integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
         para_t, para_u = join_fine(t_fine, u_fine)
         para_u = para_u.swapaxes(0,1)
 
+        print('Calculating errors')
         error = find_errors(para_u, u_vals)
+        print('Appending errors')
         error_lst.append(error)
         label_lst.append(f'dx=dx/{dx_div}, dt=dt/{n_fine_mult}')
         
@@ -201,5 +205,5 @@ if __name__ == '__main__':
     #     plot_burgers_fine(t_fine, x_vals, u_fine[:, :, :, k].swapaxes(0,2), f'Fine Burgers : Iteration {k}', f'fine_iteration{k}')
     #     plot_burgers(t_coarse, x_vals, u_coarse[:, :, k].T, f'Coarse Burgers : Iteration {k}', f'coarse_iteration{k}')
     
-    # errors_tmax([4, 1, 0.25, 0.17, 0.1], x_vals, x_initial, t_stepsG, t_stepsF, para_iterations)
-    errors_discretisation([1, 2, 4], [1, 4, 16], dx, t_stepsF, x_range, initial_func, t_stepsG, t_max, para_iterations)
+    errors_tmax([4, 1, 0.25, 0.17, 0.1], x_vals, x_initial, t_stepsG, t_stepsF, para_iterations)
+    # errors_discretisation([1, 2, 4, 8], [1, 4, 16, 64], dx, t_stepsF, x_range, initial_func, t_stepsG, 0.1, para_iterations)
