@@ -19,8 +19,9 @@ class _PRanimation(Generic[T]):
     ax : Axes
     
     def __init__(self, x_gross, x_fine,
-                 delay : int = 0,
-                 end_delay : int = 10,
+                 delay : int = 0,               # Delay after each iteration
+                 coarse_dot_delay : int = 2,    # Delay between adding each new coarse dot
+                 end_delay : int = 10,          # Delay at the end of the animation
                  title : Optional[str] = None,
                  line_colour : Union[Colormap, str, None] = None,
                  dot_colour : Union[Colormap, str, None] = None):
@@ -28,23 +29,25 @@ class _PRanimation(Generic[T]):
         self.x_gross = x_gross
         self.n_vars, self.n_gross, self.n_fine, self.iters = self.x_fine.shape
         
-        self.current_iter = 0
+        self.current_iter = 1
         self.fine_line_limit = 1
+        self.current_coarse_dot = 0
         self.delay_counter = 0
         self.finished = False
         self.delay = delay
+        self.coarse_dot_delay = coarse_dot_delay
         self.end_delay = end_delay
         self.fig = plt.figure()
         self.title = f'{title} - Iteration:' if title else 'Iteration:'
         
         if isinstance(line_colour, Colormap):
-            self.line_colour = cm.ScalarMappable(Normalize(0, self.n_gross), line_colour)
+            self.line_colour = cm.ScalarMappable(Normalize(0, self.n_gross*1.3), line_colour)
             self.use_line_cmap = True
         else:
             self.line_colour = line_colour if line_colour else 'r'
             self.use_line_cmap = False
         if isinstance(dot_colour, Colormap):
-            self.dot_colour = cm.ScalarMappable(Normalize(0, self.n_gross), dot_colour)
+            self.dot_colour = cm.ScalarMappable(Normalize(0, self.n_gross*1.3), dot_colour)
             self.use_dot_cmap = True
         else:
             self.dot_colour = dot_colour if dot_colour else 'b'
@@ -66,28 +69,39 @@ class _PRanimation(Generic[T]):
         
     def init_func(self):
         self.current_iter = 0
-        self.fine_line_limit = 1
+        self.fine_line_limit = self.n_fine+1
+        self.current_coarse_dot = 0
         self.delay_counter = 0
         self.finished = False
-        self.draw_coarse_dots()
-        self.update_title(f'{self.title} 1')
+        # self.draw_coarse_dots()
+        self.update_title(f'{self.title} 0')
         return (*self.coarse_dots, *self.coarse_dots_end, *self.fine_lines)
         
-    def update(self, _):
-        print(_)
+    def update(self, frame_num):
+        print(frame_num)
+        # Pause at the end of the animation
         if self.finished:
             if self.delay_counter < self.end_delay:
                 self.delay_counter += 1
                 return ()
             print('Done')
             raise StopIteration
-        self.edited_artists = []
         
-        # Have we finished the fine lines
-        if self.fine_line_limit > self.n_fine:
-            # Draw the new dots and then wait
-            if self.delay_counter == 0:
-                self.add_end_coarse_dots()
+        self.edited_artists = []
+        # Continue extending the fine lines
+        if self.fine_line_limit <= self.n_fine:
+            self.extend_fine_lines()
+        # Draw in the new coarse dots
+        elif self.current_coarse_dot < self.n_gross:
+            if self.coarse_dot_delay == 0:
+                self.add_all_end_coarse_dots()
+            if self.delay_counter < self.coarse_dot_delay:
+                self.delay_counter += 1
+                return ()
+            self.add_end_coarse_dot()
+            self.delay_counter = 1
+        else:
+            # Wait at the end of the iteration
             if self.delay_counter < self.delay:
                 self.delay_counter += 1
                 return ()
@@ -95,27 +109,33 @@ class _PRanimation(Generic[T]):
             print('Ending iteration', self.current_iter)
             self.current_iter += 1
             self.delay_counter = 0
-            if self.current_iter >= self.iters - 1:
+            if self.current_iter >= self.iters:
                 self.finished = True
-                return ()
-            self.update_title(f'{self.title} {self.current_iter+1}')
+                return self.update(frame_num)
+            self.update_title(f'{self.title} {self.current_iter}')
             self.clear_fine_lines()
             self.draw_coarse_dots()
-        else:
-            self.extend_fine_lines()
         
         return self.edited_artists
         
     def draw_coarse_dots(self):
         for i in range(self.n_gross):
-            self.set_line_data(self.coarse_dots[i], self.x_gross[:, i, self.current_iter])
+            self.set_line_data(self.coarse_dots[i], self.x_gross[:, i, self.current_iter-1])
             self.clear_line(self.coarse_dots_end[i])
+        self.current_coarse_dot = 0
         self.edited_artists.extend(self.coarse_dots + self.coarse_dots_end)
             
-    def add_end_coarse_dots(self):
+    def add_all_end_coarse_dots(self):
         for i, dot in enumerate(self.coarse_dots_end):
-            self.set_line_data(dot, self.x_gross[:, i, self.current_iter+1])
+            self.set_line_data(dot, self.x_gross[:, i, self.current_iter])
+        self.current_coarse_dot = self.n_gross
         self.edited_artists.extend(self.coarse_dots_end)
+        
+    def add_end_coarse_dot(self):
+        self.set_line_data(self.coarse_dots_end[self.current_coarse_dot],
+                           self.x_gross[:, self.current_coarse_dot, self.current_iter])
+        self.edited_artists.append(self.coarse_dots_end[self.current_coarse_dot])
+        self.current_coarse_dot += 1
     
     def clear_fine_lines(self):
         for line in self.fine_lines:
@@ -125,12 +145,12 @@ class _PRanimation(Generic[T]):
         
     def extend_fine_lines(self):
         for i, line in enumerate(self.fine_lines):
-            self.set_line_data(line, self.x_fine[:, i, :self.fine_line_limit, self.current_iter+1])
+            self.set_line_data(line, self.x_fine[:, i, :self.fine_line_limit, self.current_iter])
         self.fine_line_limit += 1
         self.edited_artists.extend(self.fine_lines)
         
     def animate(self, save_name, fps=10):
-        num_frames = (self.iters-1) * (self.delay + self.n_fine + 1) + self.end_delay
+        num_frames = self.iters * (self.delay + self.n_fine + self.n_gross*self.coarse_dot_delay + 1) + self.end_delay - self.n_fine
         print(f'Animating {num_frames} frames')
         animator = matplotlib.animation.FuncAnimation(self.fig, self.update, num_frames, self.init_func, blit=True)
         try:
@@ -143,13 +163,14 @@ class PRanimation3D(_PRanimation[Line3D]):
     def __init__(self, x_gross, x_fine,
                  var_range: Sequence[Sequence[float]],
                  var_names: Optional[Sequence[str]] = None,
-                 delay: int = 0,
-                 end_delay : int = 10,
+                 delay : int = 0,               # Delay after each iteration
+                 coarse_dot_delay : int = 2,    # Delay between adding each new coarse dot
+                 end_delay : int = 10,          # Delay at the end of the animation
                  title: Optional[str] = None,
                  line_colour : Union[Colormap, str, None] = None,
                  dot_colour : Union[Colormap, str, None] = None):
-        super().__init__(x_gross, x_fine, delay=delay, end_delay=end_delay, title=title,
-                         line_colour=line_colour, dot_colour=dot_colour)
+        super().__init__(x_gross, x_fine, delay=delay, coarse_dot_delay=coarse_dot_delay, end_delay=end_delay,
+                         title=title, line_colour=line_colour, dot_colour=dot_colour)
         
         assert self.n_vars == 3
         self.ax = Axes3D(self.fig)
@@ -190,13 +211,14 @@ class PRanimation2D(_PRanimation[Line2D]):
     def __init__(self, x_gross, x_fine,
                  var_range: Sequence[Sequence[float]],
                  var_names: Optional[Sequence[str]] = None,
-                 delay: int = 0,
-                 end_delay : int = 10,
+                 delay : int = 0,               # Delay after each iteration
+                 coarse_dot_delay : int = 2,    # Delay between adding each new coarse dot
+                 end_delay : int = 10,          # Delay at the end of the animation
                  title: Optional[str] = None,
                  line_colour : Union[Colormap, str, None] = None,
                  dot_colour : Union[Colormap, str, None] = None):
-        super().__init__(x_gross, x_fine, delay=delay, end_delay=end_delay, title=title,
-                         line_colour=line_colour, dot_colour=dot_colour)
+        super().__init__(x_gross, x_fine, delay=delay, coarse_dot_delay=coarse_dot_delay, end_delay=end_delay,
+                         title=title, line_colour=line_colour, dot_colour=dot_colour)
         
         assert self.n_vars == 2
         self.ax = self.fig.add_subplot(1, 1, 1)
