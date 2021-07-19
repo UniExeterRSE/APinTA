@@ -1,6 +1,6 @@
 \documentclass[a4paper,titlepage]{article}
 \usepackage{hyperref}
-
+\usepackage{dingbat}
 \usepackage{fancyhdr}
 \usepackage{geometry}
 \geometry{left=3.0truecm,right=3.0truecm,top=3.0truecm,bottom=3.0truecm} 
@@ -19,7 +19,7 @@
 \tableofcontents
 \pagebreak
 
-\section{About this document}
+\section{Introduction}
 
 This document will become the profiling report deliverable. Profiling is deliverable 5.1.1 and builds are deliverable 5.1.2.
 This report primarily focusses on Firedrake but the profiling tools evaluated could be used for profiling other codes used by the project.
@@ -74,10 +74,81 @@ module use /lustre/software/aarch64/modulefiles
 
 On the Cray systems compilation is handled by wrapper scripts from the Cray Programming Environment. The wrapper script can run different compilers depending on which programming environment module is loaded at compile time (e.g. \texttt{PrgEnv-cray} calls the Cray compiler and \texttt{PrgEnv-gnu} calls the GNU compiler). The MPI library and maths library are then linked by the wrapper script. On Cray systems the standard profiling tool is Cray Performance Analysis Tools (PAT). On ARM-based Cray systems there is also the ARM/Allinea Forge profiler.
 
-The software environment on Isca is managed using Esaybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which needs to use Intel MPI. \\
+The software environment on Isca is managed using Easybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which needs to use Intel MPI. \\
 
 \noindent
 \textbf{Recommendation: standardise on the GNU compilers for all platforms. This avoids having to manage too many different builds and takes the compiler out of the performance equation (different GCC versions notwithstanding).}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Profiling tools}
+
+Within Firedrake and available on all platforms:
+\begin{itemize}
+\item PyOP2 timed stage
+\item PETSc profiling
+\end{itemize}
+External profilers:
+\begin{itemize}
+\item ARM/Allinea Forge
+\item Cray PAT
+\item Intel Parallel Studio
+\end{itemize}
+%
+Plan for testing external profilers:
+\begin{enumerate}
+\item Test with a simple example e.g. Mandelbrot
+\item Test with Python
+\end{enumerate}
+
+\textbf{What to test? Could look at whether the profiler can spot load imbalance vs. overhead and identify the MPI call responsible.}
+
+\textbf{We could get an evaluation licence for ARM Forge and/or Intel Parallel Studio on the server. We could also look at open source profiling software for the server.} \\
+
+\subsection{Cray PAT}
+
+Although this is a Cray tool it does work with compilers other than Cray (the other PrgEnv modules load perftools-base). Experience building SWIFT showed that the \texttt{perftools-lite} module can confuse autogen and configure so only load the module prior to the make command. 
+
+\begin{itemize}
+\item Cray PAT has two modes: standard and ``lite''
+\item There is a graphical viewer (Apprentice 2) which reads the profiling output
+\item Can view a time line from a full trace
+\end{itemize}
+See also \url{https://docs.nersc.gov/tools/performance/craypat/}.
+
+It's not clear how to use Cray PAT with python/Firedrake. Loading the perftools-lite module and using the python from the cray-python module does not produce any profiling output.
+\textbf{Is there a limit on the number of MPI processes? If so I've not seen it.}
+
+\subsection{ARM Forge}
+
+ARM MAP is the profiler which is part of the ARM Forge suite and it can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}.
+\textbf{Is there a limit to how many MPI processes can be used?}
+
+\subsection{Intel Parallel Studio}
+
+Previously working on Isca with the Intel build. Intel MPI is required for the Trace Analyzer and Collector profiler to work.
+\textbf{Is there a limit on the number of MPI processes? If so I've not seen it.}
+
+\subsection{Profilers summary}
+
+\begin{table}[htp]
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+Profiler              &  Max MPI procs  &  C/C++      & Fortran & Python \\
+\hline
+Cray PAT              &   ??            & \checkmark  &  ??     &  ??    \\
+ARM Forge             &   ??            &    ??       &  ??     &  ??    \\
+Intel Parallel Studio &   ??            &    ??       &  ??     &  ??    \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Summary of profiling tools}
+\label{tab:profiler_summary}
+\end{table}%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Builds}
 
@@ -103,55 +174,14 @@ Isambard A64FX &  ??               & \\
 \end{tabular}
 \end{center}
 \caption{Status of Firedrake builds and profiling for the target platforms}
-\label{default}
+\label{table:build_status}
 \end{table}%
 
-
-
-
-\section{Profiling}
-
-Within Firedrake and available on all platforms:
 \begin{itemize}
-\item PyOP2 timed stage
-\item PETSc profiling
-\end{itemize}
-External profilers:
-\begin{itemize}
-\item ARM/Allinea Forge
-\item Cray PAT
-\item Intel Parallel Studio
-\end{itemize}
-%
-Plan for testing external profilers:
-\begin{enumerate}
-\item Test with a simple example e.g. Mandelbrot
-\item Test with Python
-\item Test with Firedrake
-\end{enumerate}
-
-\textbf{What to test? Could look at whether the profiler can spot load imbalance vs. overhead and identify the MPI call responsible.}
-
-\subsection{Cray PAT}
-
-Although this is a Cray tool it does work with compilers other than Cray (the other PrgEnv modules load perftools-base). Experience building SWIFT showed that the \texttt{perftools-lite} module can confused autogen and configure so only load the module prior to the make command. 
-
-\begin{itemize}
-\item Cray PAT has two modes: standard and ``lite''
-\item There is a graphical viewer (Apprentice 2) which reads the profiling output
-\item Can view a time line from a full trace
+\item Isambard build of Firedrake: what's happening with BLAS/Lapack etc? Scalapack gets built as part of the PETSc build but is also available from \texttt{libsci}
 \end{itemize}
 
-It's not clear how to use Cray PAT with python/Firedrake.
 
-See also \url{https://docs.nersc.gov/tools/performance/craypat/}.
-
-\subsection{ARM Forge}
-
-ARM MAP is the profiler which is part of the ARM Forge suite and it can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}.
-
-\subsection{Intel Parallel Studio}
-
-Previously working on Isca with the Intel build. Intel MPI is required for the Trace Analyzer and Collector profiler to work.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \end{document}
