@@ -71,59 +71,6 @@ void calc_vals(int i){
 
 /******************************************************************************************/
 
-/* Communicate results so that the rank 1 process in the world group is ready 
-to write results out to file. A new communicator will be set up which includes 
-only the worker processes */
-
-void do_communication(int myRank){
-
-  MPI_Group worldGroup, workerGroup;
-  MPI_Comm  workerComm;
-  int zeroArray={0};
-  
-  int sendBuffer[(N_RE+1)*(N_IM+1)];
-  int receiveBuffer[(N_RE+1)*(N_IM+1)];
-  int index=0;
-  int i, j;
-
-  // Get a group handle for the world group
-  MPI_Comm_group(MPI_COMM_WORLD, &worldGroup);
-  // Form a new group excluding world group rank 0 
-  MPI_Group_excl(worldGroup, 1, &zeroArray, &workerGroup); 
-  // Create a communicator for the new group
-  MPI_Comm_create(MPI_COMM_WORLD, workerGroup, &workerComm);
-  
-  /* Pack nIter into a 1D buffer for sending*/
-  for (i=0; i<N_RE+1; i++){
-    for (j=0; j<N_IM+1; j++){
-      sendBuffer[index]=nIter[i][j];
-      index++;
-    }
-  }
-
-  /* call MPI_reduce to collate all results on world group process 1
-      The world group rank zero process does not make this call */
-  if (myRank != 0 ){
-    MPI_Reduce(&sendBuffer, &receiveBuffer, (N_RE+1)*(N_IM+1), MPI_INT, MPI_SUM, 0, workerComm); 
-  }
-
-  /* Unpack receive buffer into nIter */
-  index=0;
-  for (i=0; i<N_RE+1; i++){
-    for (j=0; j<N_IM+1; j++){
-      nIter[i][j]=receiveBuffer[index];
-      index++;
-    }
-  }
-
-  /* Free the group and communicator */
-  if (myRank != 0 ){MPI_Comm_free(&workerComm);}
-  MPI_Group_free(&workerGroup);
-  
-}
-
-/******************************************************************************************/
-
 void write_to_file(char filename[]){
 
   int i, j;
@@ -262,9 +209,6 @@ int main(int argc, char *argv[]){
 
     } // while(true)
   } // else worker process
-
-  /* Communicate results so rank 1 has all the values */
-  //  do_communication(myRank);
 
   /* Write out results */
   if (doIO && myRank==0 ){
