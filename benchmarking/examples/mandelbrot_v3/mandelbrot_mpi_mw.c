@@ -15,8 +15,8 @@ Contact: D. Acreman, Exeter University
 #include <mpi.h>
 
 /* Number of intervals on real and imaginary axes*/
-#define N_RE 1200
-#define N_IM 800
+#define N_RE 12000
+#define N_IM  8000
 
 /* Number of iterations at each z value */
 int nIter[N_RE+1][N_IM+1];
@@ -31,7 +31,7 @@ const float z_Im_min = -1.0; /* Minimum imaginary value */
 const float z_Im_max =  1.0; /* Maximum imaginary value */
 
 /* Set to true to write out results*/
-const bool doIO = true;
+const bool doIO = false;
 const bool verbose = false;
 
 /******************************************************************************************/
@@ -214,6 +214,10 @@ int main(int argc, char *argv[]){
   if (doIO && myRank==0 ){
     if (verbose) {printf("Writing out results from process %d \n", myRank);}
     write_to_file("mandelbrot.dat");
+  } else {
+    if (myRank==0){
+      printf("Centre: nIter=%d\n",nIter[N_RE/2][N_IM/2]);
+	}
   }
 
   /* Record end time */

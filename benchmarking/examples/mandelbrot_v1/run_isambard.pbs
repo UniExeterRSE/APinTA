@@ -1,0 +1,24 @@
+#!/bin/bash
+#PBS -q arm
+#PBS -l walltime=00:10:00
+#PBS -l select=1
+#PBS -N MB_test1
+
+# Load the programming environment and Forge modules 
+module switch PrgEnv-cray PrgEnv-gnu
+module load tools/arm-forge
+
+# The number of processors to use
+nprocs=4
+
+# Change to the directory that the job was submitted from
+cd ${PBS_O_WORKDIR}
+
+# Set the number of threads to 1
+# This prevents any system libraries from automatically using threading.
+export OMP_NUM_THREADS=1
+
+# Run the executable and generate a performance report
+perf-report aprun -n ${nprocs} ./mandelbrot
+
+# End of file ################################################################

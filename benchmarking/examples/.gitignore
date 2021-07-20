@@ -1,0 +1,7 @@
+*.html
+*.txt
+*~
+MB_test*.o*
+MB_test*.e*
+mandelbrot
+

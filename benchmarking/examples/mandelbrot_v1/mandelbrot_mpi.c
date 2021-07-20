@@ -38,7 +38,7 @@ int main(int argc, char *argv[]){
 
   const bool doIO = false; 
   const bool verbose = false;
-  
+
   /* Rank of this MPI process */
   int myRank;
   /* Total number of MPI processes*/
@@ -127,6 +127,10 @@ int main(int argc, char *argv[]){
       }
     }
     fclose(outfile);
+  } else {
+    if (myRank==0){
+      printf("Centre: nIter=%d\n",nIter[nRe/2][nIm/2]);
+	}
   }
 
   /* Record end time. The barrier synchronises the process so they all measure the same time */
