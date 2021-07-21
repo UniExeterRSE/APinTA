@@ -207,10 +207,10 @@ def fineRes(a,b,nF,y0,f,F):
 
 def main():
     a = 0
-    b = 6.      #10.
-    nG = 44     #180
+    b = 5.      #10.
+    nG = 40     #180
     nF = 1440   #14400
-    K = 20      #20
+    K = 10      #20
     y0 = [5,-5,20]
     f = lorenz63
     G = lorenz_rk4
@@ -225,10 +225,10 @@ def main():
     # pr.plot_2d_phase(x_gross_corr[:, :, :2], ['x', 'y'], 'Lorenz attractor')
     animator3d = prAnimate.PRanimation3D(x_gross_corr, x_fine_corr, [[-20,20], [-25,25], [0,40]], ['x', 'y', 'z'], 8, 1,
                                          title='Lorenz attractor', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
-    animator3d.animate('tutorial/animations/Lorenz_attactor3d_coloureddots_longer.gif', 15)
+    animator3d.animate('tutorial/animations/Lorenz_attactor3d_.gif', 15)
     animator2d = prAnimate.PRanimation2D(x_gross_corr[:, :, :2], x_fine_corr[:, :, :, :2], [[-20,20], [-25,25]], ['x', 'y'], 8, 1,
                                          title='Lorenz attractor', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
-    animator2d.animate('tutorial/animations/Lorenz_attactor2d_coloureddots_longer.gif', 15)
+    animator2d.animate('tutorial/animations/Lorenz_attactor2d_.gif', 15)
 
 if __name__ == "__main__":
     main()

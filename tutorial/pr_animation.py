@@ -29,11 +29,14 @@ class _PRanimation(Generic[T], ABC):
         self.x_fine = x_fine        
         self.x_gross = x_gross
         self.n_gross, self.iters, *_ = self.x_fine.shape
-        self.n_fine = len(self.x_fine[-1, -1])
+        # This will be lower sometimes for adaptive solves
+        self.n_fine_max = max(map(len, self.x_fine[:, -1]))
         self.n_vars = len(self.x_fine[-1, -1][-1])
         
         self.current_iter = 1
-        self.fine_line_limit = 1
+        self.drawing_fine_lines = False
+        self.fine_line_step = 1
+        self.n_fine_steps = self.n_fine_max
         self.current_coarse_dot = 0
         self.delay_counter = 0
         self.finished = False
@@ -72,7 +75,8 @@ class _PRanimation(Generic[T], ABC):
         
     def init_func(self):
         self.current_iter = 0
-        self.fine_line_limit = self.n_fine+1
+        self.drawing_fine_lines = False
+        self.fine_line_step = 0
         self.current_coarse_dot = 0
         self.delay_counter = 0
         self.finished = False
@@ -92,7 +96,7 @@ class _PRanimation(Generic[T], ABC):
         
         self.edited_artists = []
         # Continue extending the fine lines
-        if self.fine_line_limit <= self.n_fine:
+        if self.drawing_fine_lines:
             self.extend_fine_lines()
         # Draw in the new coarse dots
         elif self.current_coarse_dot < self.n_gross:
@@ -109,17 +113,23 @@ class _PRanimation(Generic[T], ABC):
                 self.delay_counter += 1
                 return ()
             # After the delay start a new iteration/end the animation
-            print('Ending iteration', self.current_iter)
-            self.current_iter += 1
-            self.delay_counter = 0
-            if self.current_iter >= self.iters:
-                self.finished = True
+            self.iteration_init()
+            if self.finished:
                 return self.update(frame_num)
             self.update_title(f'{self.title} {self.current_iter}')
             self.clear_fine_lines()
             self.draw_coarse_dots()
         
         return self.edited_artists
+    
+    def iteration_init(self):
+        self.current_iter += 1
+        if self.current_iter >= self.iters:
+            self.finished = True
+            return
+        self.drawing_fine_lines = True
+        self.delay_counter = 0
+        print('Starting iteration', self.current_iter)
         
     def draw_coarse_dots(self):
         for i in range(self.n_gross):
@@ -143,24 +153,29 @@ class _PRanimation(Generic[T], ABC):
     def clear_fine_lines(self):
         for line in self.fine_lines:
             self.clear_line(line)
-        self.fine_line_limit = 1
+        self.fine_line_step = 1
         self.edited_artists.extend(self.fine_lines)
         
     def extend_fine_lines(self):
         for i, line in enumerate(self.fine_lines):
-            self.set_line_data(line, np.array(self.x_fine[i, self.current_iter][:self.fine_line_limit]).T)
-        self.fine_line_limit += 1
+            data = self.x_fine[i, self.current_iter]
+            draw_to = int(len(data)*self.fine_line_step/self.n_fine_steps)
+            if draw_to == 0:
+                draw_to = 1
+            self.set_line_data(line, np.array(data[:draw_to]).T)
+        self.fine_line_step += 1
         self.edited_artists.extend(self.fine_lines)
+        if self.fine_line_step > self.n_fine_steps:
+            self.drawing_fine_lines = False
         
     def animate(self, save_name, fps=10):
-        num_frames = self.iters * (self.delay + self.n_fine + self.n_gross*self.coarse_dot_delay + 1) + self.end_delay - self.n_fine
-        print(f'Animating {num_frames} frames')
+        num_frames = self.iters * (self.delay + self.n_fine_max + self.n_gross*self.coarse_dot_delay + 1) + self.end_delay - self.n_fine_max
+        print(f'Animating up to {num_frames} frames')
         animator = matplotlib.animation.FuncAnimation(self.fig, self.update, num_frames, self.init_func, blit=True)
         try:
             animator.save(save_name, fps=fps)
         except StopIteration:
             print('Animation stopped')
-            pass
         
 class PRanimation3D(_PRanimation[Line3D]):
     def __init__(self, x_gross, x_fine,
@@ -254,3 +269,18 @@ class PRanimation2D(_PRanimation[Line2D]):
         
     def update_title(self, title: str):
         plt.title(title)
+
+class _PRanimationAdaptive(_PRanimation): 
+    def iteration_init(self):
+        super().iteration_init()
+        if self.finished:
+            return
+        fine_lens = list(map(len, self.x_fine[:, self.current_iter]))
+        self.n_fine_steps = round(np.mean(fine_lens))
+        print(self.n_fine_steps, fine_lens)
+        
+class PRanimationAdaptive3D(PRanimation3D, _PRanimationAdaptive):
+    pass
+
+class PRanimationAdaptive2D(PRanimation2D, _PRanimationAdaptive):
+    pass
