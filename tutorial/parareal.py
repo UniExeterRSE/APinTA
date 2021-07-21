@@ -58,36 +58,36 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x_i
         fine_int_func = partial(fine_integ, func, dt_fine, *integ_args, n_fine, **integ_kwargs)
         coarse_int_func = partial(coarse_integ, func, dt_gross, *integ_args, **integ_kwargs)
     
-    x_gross = np.empty((n_vars, len(t_gross), iterations))
-    x_fine_corr = np.empty((n_vars, n_gross, n_fine, iterations))
+    x_gross = np.empty((len(t_gross), iterations, n_vars))
+    x_fine_corr = np.empty((n_gross, iterations, n_fine, n_vars))
     
     # Add initial conditions
-    x0_repeated = x0.reshape((n_vars, 1)).repeat(iterations, 1)
-    x_gross[:, 0, :] = x0_repeated
-    x_fine_corr[:, 0, 0, :] = x0_repeated
+    x0_repeated = x0.reshape((1, n_vars,)).repeat(iterations, 0)
+    x_gross[0, :] = x0_repeated
+    x_fine_corr[0, :, 0] = x0_repeated
     
     # Initial coarse integration
-    x_gross[:, :, 0] = coarse_int_func(n_gross+1, x_gross[:, 0, 0])    
+    x_gross[:, 0] = coarse_int_func(n_gross+1, x_gross[0, 0])    
     
     x_gross_corr = x_gross.copy()
     
     for k in range(1, iterations):
         print(f'Iteration {k}')
-        x_fine_corr[:, :, 0, k] = x_gross_corr[:, :-1, k-1]
+        x_fine_corr[:, k, 0] = x_gross_corr[:-1, k-1]
         if PARALLEL_PROCESSES == 0:
             # Loop done in serial
             for i in range(n_gross):
-                x_fine_corr[:, i, :, k] = fine_int_func(x_fine_corr[:, i, 0, k])
+                x_fine_corr[i, k, :] = fine_int_func(x_fine_corr[i, k, 0])
         else:
             # Loop done in parallel
             with Pool(PARALLEL_PROCESSES) as p:
-                integ_map = p.map(fine_int_func, x_fine_corr[:, :, 0, k].swapaxes(0, 1)) # Axes swapped to iterate over each coarse section
-            x_fine_corr[:, :, :, k] = np.array(list(integ_map)).swapaxes(0, 1) # Swap axes back again
+                integ_map = p.map(fine_int_func, x_fine_corr[:, k, 0])
+            x_fine_corr[:, k, :] = np.array(list(integ_map))
             
         # Correcting
         for t in range(n_gross):
-            x_gross[:, t+1, k] = coarse_int_func(2, x_gross_corr[:, t, k])[:, -1]
-            x_gross_corr[:, t+1, k] = x_gross[:, t+1, k] - x_gross[:, t+1, k-1] + x_fine_corr[:, t, -1, k]
+            x_gross[t+1, k] = coarse_int_func(2, x_gross_corr[t, k])[-1]
+            x_gross_corr[t+1, k] = x_gross[t+1, k] - x_gross[t+1, k-1] + x_fine_corr[t, k, -1]
           
     if full_output:
         return (t_gross, x_gross_corr, t_fine, x_fine_corr)
@@ -96,6 +96,8 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x_i
     
 def plot_comp(t_gross, x_gross, x_fine, var_names = None, title = None,
               *plot_args, **plot_kwargs):
+    x_gross = x_gross.swapaxes(1,2).swapaxes(0,1)
+    x_fine = x_fine.swapaxes(0,1).swapaxes(0,3)
     num_vars, num_t, iterations = x_gross.shape
     if var_names is None:
         var_names = []
@@ -121,6 +123,8 @@ def plot_comp(t_gross, x_gross, x_fine, var_names = None, title = None,
         
 def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = None,
               *plot_args, **plot_kwargs):
+    x_gross = x_gross.swapaxes(1,2).swapaxes(0,1)
+    x_fine = x_fine.swapaxes(0,1).swapaxes(0,3)
     num_vars, num_gross, num_t, iterations = x_fine.shape
     if var_names is None:
         var_names = []
@@ -144,6 +148,7 @@ def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = N
         
 def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
                   *plot_args, **plot_kwargs):
+    x_gross = x_gross.swapaxes(1,2).swapaxes(0,1)
     num_vars, num_t, iterations = x_gross.shape
     assert num_vars == 2
     if var_names is None:

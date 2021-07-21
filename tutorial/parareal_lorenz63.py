@@ -222,11 +222,11 @@ def main():
     t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(a, b, nG, nF//nG, K, y0, RK4, RK4, lorenz63, full_output=True)
     # pr.plot_comp(t_gross, x_gross_corr, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor', '-o')
     # pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y', 'z'], 'Lorenz attractor')
-    # pr.plot_2d_phase(x_gross_corr[:2, :, :], ['x', 'y'], 'Lorenz attractor')
+    # pr.plot_2d_phase(x_gross_corr[:, :, :2], ['x', 'y'], 'Lorenz attractor')
     animator3d = prAnimate.PRanimation3D(x_gross_corr, x_fine_corr, [[-20,20], [-25,25], [0,40]], ['x', 'y', 'z'], 8, 1,
                                          title='Lorenz attractor', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
     animator3d.animate('tutorial/animations/Lorenz_attactor3d_coloureddots_longer.gif', 15)
-    animator2d = prAnimate.PRanimation2D(x_gross_corr[:2], x_fine_corr[:2], [[-20,20], [-25,25]], ['x', 'y'], 8, 1,
+    animator2d = prAnimate.PRanimation2D(x_gross_corr[:, :, :2], x_fine_corr[:, :, :, :2], [[-20,20], [-25,25]], ['x', 'y'], 8, 1,
                                          title='Lorenz attractor', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
     animator2d.animate('tutorial/animations/Lorenz_attactor2d_coloureddots_longer.gif', 15)
 

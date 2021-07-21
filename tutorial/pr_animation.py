@@ -1,4 +1,5 @@
 from typing import Generic, List, Sequence, Optional, TypeVar, Union
+import numpy as np
 import matplotlib.animation
 from matplotlib.colors import Colormap, Normalize
 import matplotlib.pyplot as plt
@@ -7,17 +8,11 @@ from matplotlib.lines import Line2D
 from matplotlib.axes._axes import Axes
 from mpl_toolkits.mplot3d.art3d import Line3D
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
-T = TypeVar('T')
+T = TypeVar('T', bound='_PRanimation')
 
-class _PRanimation(Generic[T]):
-    edited_artists : List[T]
-    fine_lines : List[T]
-    coarse_dots : List[T]
-    coarse_dots_end : List[T]
-    ax : Axes
-    
+class _PRanimation(Generic[T], ABC):
     def __init__(self, x_gross, x_fine,
                  delay : int = 0,               # Delay after each iteration
                  coarse_dot_delay : int = 2,    # Delay between adding each new coarse dot
@@ -25,9 +20,17 @@ class _PRanimation(Generic[T]):
                  title : Optional[str] = None,
                  line_colour : Union[Colormap, str, None] = None,
                  dot_colour : Union[Colormap, str, None] = None):
+        self.edited_artists : List[T]
+        self.fine_lines : List[T]
+        self.coarse_dots : List[T]
+        self.coarse_dots_end : List[T]
+        self.ax : Axes
+        
         self.x_fine = x_fine        
         self.x_gross = x_gross
-        self.n_vars, self.n_gross, self.n_fine, self.iters = self.x_fine.shape
+        self.n_gross, self.iters, *_ = self.x_fine.shape
+        self.n_fine = len(self.x_fine[-1, -1])
+        self.n_vars = len(self.x_fine[-1, -1][-1])
         
         self.current_iter = 1
         self.fine_line_limit = 1
@@ -120,20 +123,20 @@ class _PRanimation(Generic[T]):
         
     def draw_coarse_dots(self):
         for i in range(self.n_gross):
-            self.set_line_data(self.coarse_dots[i], self.x_gross[:, i, self.current_iter-1])
+            self.set_line_data(self.coarse_dots[i], self.x_gross[i, self.current_iter-1])
             self.clear_line(self.coarse_dots_end[i])
         self.current_coarse_dot = 0
         self.edited_artists.extend(self.coarse_dots + self.coarse_dots_end)
             
     def add_all_end_coarse_dots(self):
         for i, dot in enumerate(self.coarse_dots_end):
-            self.set_line_data(dot, self.x_gross[:, i, self.current_iter])
+            self.set_line_data(dot, self.x_gross[i, self.current_iter])
         self.current_coarse_dot = self.n_gross
         self.edited_artists.extend(self.coarse_dots_end)
         
     def add_end_coarse_dot(self):
         self.set_line_data(self.coarse_dots_end[self.current_coarse_dot],
-                           self.x_gross[:, self.current_coarse_dot, self.current_iter])
+                           self.x_gross[self.current_coarse_dot, self.current_iter])
         self.edited_artists.append(self.coarse_dots_end[self.current_coarse_dot])
         self.current_coarse_dot += 1
     
@@ -145,7 +148,7 @@ class _PRanimation(Generic[T]):
         
     def extend_fine_lines(self):
         for i, line in enumerate(self.fine_lines):
-            self.set_line_data(line, self.x_fine[:, i, :self.fine_line_limit, self.current_iter])
+            self.set_line_data(line, np.array(self.x_fine[i, self.current_iter][:self.fine_line_limit]).T)
         self.fine_line_limit += 1
         self.edited_artists.extend(self.fine_lines)
         
