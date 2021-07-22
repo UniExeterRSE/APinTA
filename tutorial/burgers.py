@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Callable, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
@@ -9,30 +9,47 @@ import parareal as pr
 NU = 0.02
 PLOT_ITERATION = False
 
-def burgers_f(u, dx, nu, extra_out=False):
+def u_dudx(u, dx):
     u_iplus = np.roll(u, -1)
     u_iminus = np.roll(u, 1)
-    result = -u*(u_iplus - u_iminus)/(2*dx) + nu*(u_iplus - 2*u + u_iminus)/dx**2
+    result = u*(u_iplus - u_iminus)/(2*dx)
     result[0] = 0
     result[-1] = 0
-    
-    if extra_out:
-        return (result, u_iplus, u_iminus)
+    return result
+
+def nu_d2udx2(u, dx, nu):
+    u_iplus = np.roll(u, -1)
+    u_iminus = np.roll(u, 1)
+    result = nu*(u_iplus - 2*u + u_iminus)/dx**2
+    result[0] = 0
+    result[-1] = 0
     return result
 
 def initial_func(x):
     return np.sin(2*np.pi*x)
 
-def burgers_scipy_func(u_nplus, u_n, dt, dx, nu):
-    zero = u_nplus - u_n - dt*burgers_f(u_nplus, dx, nu)
+def scipy_func(u_nplus, u_n, dt, dx, nu):
+    zero = u_nplus - u_n - dt*(nu_d2udx2(u_nplus, dx, nu) - u_dudx(u_nplus, dx))
     return zero
 
-def burgers_scipy(u_n, dt, dx, nu=0.02, **_):
-    u_nplus = optimize.fsolve(burgers_scipy_func, u_n, (u_n, dt, dx, nu))
-    burgers_scipy_func(u_nplus, u_n, dt, dx, nu)
+def imexRK_scipy_func(u_1, u_n_part, dt, dx, nu):
+    zero = u_1 - u_n_part - dt*nu_d2udx2(u_1, dx, nu)
+    return zero
+
+def burgers_explicitRK(u_n, dt, dx, nu):
+    u_1 = u_n + dt*nu_d2udx2(u_n, dx, nu) - dt/2*u_dudx(u_n, dx)
+    return u_n + dt*(nu_d2udx2(u_1, dx, nu) - u_dudx(u_1, dx))
+
+def burgers_imexRK(u_n, dt, dx, nu):
+    u_n_dep = u_n - dt/2*u_dudx(u_n, dx)
+    u_1 = optimize.fsolve(imexRK_scipy_func, u_n, (u_n_dep, dt, dx, nu))
+    return u_n + dt*(nu_d2udx2(u_1, dx, nu) - u_dudx(u_1, dx))
+
+def burgers_scipy(u_n, dt, dx, nu):
+    u_nplus = optimize.fsolve(scipy_func, u_n, (u_n, dt, dx, nu))
     return u_nplus
 
-def burgers_fixed_point(u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_vals=None, t=None):
+def burgers_fixed_point(u_n, dt, dx, nu, tol=1e-5, max_iterations=10, x_vals=None, t=None):
     u_k = u_n
     if PLOT_ITERATION:
         fig = plt.figure()
@@ -40,14 +57,13 @@ def burgers_fixed_point(u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_val
         ax = fig.subplots(max_iterations+1, 1)
     for i in range(max_iterations):
         u_kminus = u_k
+        first_derivative = u_dudx(u_k, dx)
+        second_derivative = nu_d2udx2(u_k, dx, nu)
         if PLOT_ITERATION:
-            f, plus, minus = burgers_f(u_k, dx, nu, True)
             ax[i].plot(x_vals, u_k)
-            ax[i].plot(x_vals, plus - minus)
-            ax[i].plot(x_vals, plus - 2*u_k + minus)
-        else:
-            f = burgers_f(u_k, dx, nu)
-        u_k = u_n + dt*f
+            ax[i].plot(x_vals, first_derivative)
+            ax[i].plot(x_vals, second_derivative)
+        u_k = u_n + dt*(second_derivative - first_derivative)
         if max(abs(u_k-u_kminus)) < tol:
             break
     if PLOT_ITERATION:
@@ -55,17 +71,17 @@ def burgers_fixed_point(u_n, dt, dx, nu=0.02, tol=1e-5, max_iterations=10, x_val
         plt.show()
     return u_k
 
-def integ_burgers(dt, dx, n, u0, nu=0.02, tol=1e-5, max_iterations=10):
+def integ_burgers(dt, dx, n, u0, nu=0.02, burgers_func: Callable = burgers_scipy, **func_kwargs):
     u_len = len(u0)
-    output = np.empty((u_len, n))
-    output[:, 0] = u0
+    output = np.empty((n, u_len))
+    output[0, :] = u0
     
     for i in range(1, n):
-        output[:, i] = burgers_scipy(output[:, i-1], dt, dx, nu)
+        output[i, :] = burgers_func(output[i-1, :], dt, dx, nu, **func_kwargs)
         
     return output
 
-def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu):
+def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu, burgers_func=burgers_scipy):
     t_vals = np.linspace(*t_range, num_t, False)
     num_x = len(x_vals)
     u_vals = np.zeros((num_t, num_x))
@@ -75,13 +91,14 @@ def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu):
     u_vals[0, :] = x0
     
     for i in range(1, num_t):
-        u_vals[i, :] = burgers_scipy(u_vals[i-1, :], dt, dx, nu, x_vals=x_vals, t=t_vals[i])
+        u_vals[i, :] = burgers_func(u_vals[i-1, :], dt, dx, nu)
+        # u_vals[i, :] = burgers_fixed_point(u_vals[i-1, :], dt, dx, nu, x_vals=x_vals, t=t_vals[i])
         
     return t_vals, u_vals
 
 def join_fine(t_fine, u_fine):
     num_vars, n_gross, n_fine, iterations = u_fine.shape
-    n_fine -= 1 # Don't includ eoverlapping endpoints
+    n_fine -= 1 # Don't include overlapping endpoints
     t_joined = np.empty(n_gross*n_fine)
     u_joined = np.empty((num_vars, n_gross*n_fine, iterations))
     
@@ -185,7 +202,7 @@ def errors_discretisation(dx_div_vals, n_fine_mult_vals, dx0, n_fine0, x_range, 
         
     plot_errors(error_lst, label_lst)
     
-if __name__ == '__main__':
+def main():
     x_range = [0, 1]
     x_vals = np.linspace(x_range[0], x_range[1], 51)
     dx = x_vals[1] - x_vals[0]
@@ -197,13 +214,17 @@ if __name__ == '__main__':
     # plot_burgers(t_vals, x_vals, u_vals)
     
     para_iterations = 10
-    # t_coarse, u_coarse, t_fine, u_fine = pr.parareal(0, t_max, t_stepsG, t_stepsF, para_iterations, x_initial,
-    #                                                  integ_burgers, integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
+    t_coarse, u_coarse, t_fine, u_fine = pr.parareal(0, t_max, t_stepsG, t_stepsF, para_iterations, x_initial,
+                                                     integ_burgers, integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
     
-    # plot_burgers(t_coarse, x_vals, u_coarse[:, :, 0].T, f'Coarse Burgers : Iteration 0', 'coarse_iteration0')
-    # for k in range(1, para_iterations):
-    #     plot_burgers_fine(t_fine, x_vals, u_fine[:, :, :, k].swapaxes(0,2), f'Fine Burgers : Iteration {k}', f'fine_iteration{k}')
-    #     plot_burgers(t_coarse, x_vals, u_coarse[:, :, k].T, f'Coarse Burgers : Iteration {k}', f'coarse_iteration{k}')
+    plot_burgers(t_coarse, x_vals, u_coarse[:, 0, :], f'Coarse Burgers : Iteration 0', 'coarse_iteration0')
+    for k in range(1, para_iterations):
+        plot_burgers_fine(t_fine, x_vals, u_fine[:, k, :, :].swapaxes(0,1), f'Fine Burgers : Iteration {k}', f'fine_iteration{k}')
+        plot_burgers(t_coarse, x_vals, u_coarse[:, k, :], f'Coarse Burgers : Iteration {k}', f'coarse_iteration{k}')
+
+    # errors_tmax([4, 1, 0.25, 0.17, 0.1], x_vals, x_initial, t_stepsG, t_stepsF, para_iterations)
+    # errors_discretisation([1, 2, 4, 8], [1, 4, 16, 64], dx, t_stepsF, x_range, initial_func, t_stepsG, 0.1, para_iterations)   
     
-    errors_tmax([4, 1, 0.25, 0.17, 0.1], x_vals, x_initial, t_stepsG, t_stepsF, para_iterations)
-    # errors_discretisation([1, 2, 4, 8], [1, 4, 16, 64], dx, t_stepsF, x_range, initial_func, t_stepsG, 0.1, para_iterations)
+if __name__ == '__main__':
+    main()
+    
