@@ -110,23 +110,6 @@ def parareal(a,b,nG,nF,K,y0,f,G,F):
             corr[:,i,0,k] = yG_correct[:,i,k-1]
             for j in range(1,int(nF/nG)+1): # This needs to be done in parallel
                 corr[0,i,j,k], corr[1,i,j,k], corr[2,i,j,k] = fineEval(F, deltaF, nF, corr[0,i,j-1,k], corr[1,i,j-1,k], corr[2,i,j-1,k], f)
-            if i < 0:
-                ax1,ax2 = plt.figure().subplots(2,1)
-                ax1.plot(xG, yG_correct[0,:,k], '-o', lw=1.5, label="x")
-                ax1.plot(xG, yG_correct[1,:,k], '-o', lw=1.5, label="y")
-                ax1.plot(xG, yG_correct[2,:,k], '-o', lw=1.5, label="z")
-                #print(corr[0,i,:,k])
-                ax2.plot(xF[1], corr[0,i,:,k], '-o', lw=1.5, label="x")
-                ax2.plot(xF[1], corr[1,i,:,k], '-o', lw=1.5, label="y")
-                ax2.plot(xF[1], corr[2,i,:,k], '-o', lw=1.5, label="z")
-
-                ax2.set_ylabel("X,Y,Z")
-                ax2.set_xlabel("Time")
-                ax1.set_title("Lorenz Attractor")
-                ax1.legend()
-                ax2.legend()
-                plt.show()
-
         # predict and correct
         for i in range(nG):
             yG[0,i+1,k], yG[1,i+1,k],yG[2,i+1,k] = coarseEval(G, deltaG, nG, yG_correct[0,i,k], yG_correct[1,i,k], yG_correct[2,i,k], f)

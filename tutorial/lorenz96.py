@@ -90,10 +90,11 @@ class Lorenz96(object):
         return self._Z
     
         
-    def rk4_step(self,x,y,z,dt):
+    def rk4_step(self,dt, A):
         """
         A single timestep using RK4
         """
+        x,y,z = A
         x1,y1,z1 = self.l96(x,y,z)  
 
         x2,y2,z2 = self.l96(x+x1*dt/2.0,
@@ -161,30 +162,46 @@ def plot_l96(X,Y,Z):
     """
     nvars = X.shape[-1]
     nrows, ncols = 4, nvars//2
-    fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
+    #fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
+    fig, axs = plt.subplots(3,figsize=(10,8)) 
+    X_xpoints = np.arange(0,X.shape[0],1)
+    Y_xpoints = np.arange(0,X.shape[0],1/Y.shape[-1])
+    Z_xpoints = np.arange(0,X.shape[0],1/Y.shape[-1]/Z.shape[-1])
+    print(X_xpoints, X_xpoints.shape)
+    print(Y_xpoints,Y_xpoints.shape)
+    print(Z_xpoints,Z_xpoints.shape)
+    #for i in range(nvars):
+    #    axs[i].plot(X[:,i])
+    #    #axs[i].plot(Y[:,0, i])
+    #    #axs[i].plot(Z[:,0, 0, i])
+    #plt.suptitle('X variables')
+    #plt.show()
     for i in range(nvars):
-        axs[i].plot(X[:,i])
+        fig, axs = plt.subplots(3,figsize=(10,8)) 
+        axs[0].plot(X_xpoints, X[:,i])
+        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:]))
+        axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]))
         #axs[i].plot(Y[:,0, i])
         #axs[i].plot(Z[:,0, 0, i])
-    plt.suptitle('X variables')
-    plt.show()
-    
+        plt.suptitle('X,Y,Z variables')
+        plt.show()
+
     
 def main():
     """
     """
     K = 8 
-    J = 8
-    I = 8
+    J = 10 
+    I = 10 
     nlevels = 3
     h, g = 1., 1.
     b, c, e, d = 1., 1., 1., 1.
     F = 20.
 
     
-    L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
+    #L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
     #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
-    #L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+    L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
     x,y,z = L96.X_coord, L96.Y_coord, L96.Z_coord
     npoints = 10000
     t_start, t_end = 0,10
@@ -193,7 +210,7 @@ def main():
     Y_out = np.zeros((npoints, K, J))
     Z_out = np.zeros((npoints, K, J, I))
     for i in range(npoints):
-        x_,y_,z_ = L96.rk4_step(x,y,z,dt)
+        x_,y_,z_ = L96.rk4_step(dt,[x,y,z])
         X_out[i,:] = x_
         Y_out[i,:] = y_
         Z_out[i,:] = z_
