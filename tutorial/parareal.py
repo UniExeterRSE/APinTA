@@ -19,7 +19,7 @@ class Parareal():
 
         x2 = f(x+x1*dt/2.0, **f_kwargs)
         x3 = f(x+x2*dt/2.0, **f_kwargs)
-        x4 = f(x+x3*dt/2.0, **f_kwargs)
+        x4 = f(x+x3*dt, **f_kwargs)
         x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
         return x_n
      
@@ -49,10 +49,11 @@ class Parareal():
         # Initial coarse run through 
         for i in range(1,nG+1):
             yG[i,...,0] = self.integratorStep(self.solver, deltaG, yG[i-1,...,0], f, **f_kwargs)
-
         yG_correct = yG.copy()
         #correction = np.zeros((nG,int(nF/nG)+1,K))
         correction = np.zeros((yG_in.shape)+(int(nF/nG)+1,K))
+        correction[0,...,0,:] = np.array([i * np.ones(K) for i in y0])
+
         for k in range(1,K):
             #run fine integrator in parallel for each k interation
             for i in range(nG):
