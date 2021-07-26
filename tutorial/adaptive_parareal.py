@@ -109,18 +109,40 @@ class BaseParareal(ABC):
         
     # Methods that can/must be overridden
     def get_coarse_t(self, a: float, b: float) -> np.ndarray:
-        """Returns a numpy array of the coarse t values. This should be length self.n_coarse+1
+        """Returns a numpy array of the coarse t values.
         Can be overridden for non-uniform coarse steps
+        
+        Returns:
+        t_coarse: np.ndarray
+            Array of t values for the coarse integrator to be calculated at. Must be of length
+            self.n_coarse+1 and start/end with a/b respectively
         """
         return np.linspace(a, b, self.n_coarse+1)
     
     @abstractmethod
     def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray) -> np.ndarray:
+        """Coarsely integrates x_in by one step.
+        Must be overridden in a subclass.
+        
+        Returns:
+        x_coarse: np.ndarray
+            The value of the function at t=b
+        """
         raise NotImplementedError
     
     @abstractmethod
     def fine_integration(self, t_start: float, t_end: float, x_initial: np.ndarray,
                    coarse_step: int, iteration: int) -> Tuple[List[float], List[np.ndarray]]:
+        """Finely integrates x_initial in as many steps as is desired.
+        Must be overridden in a subclass.
+        
+        Returns:
+        t_fine_result: List[float]
+            List containg the values of each fine step used
+        x_fine_result: List[np.ndarray]
+            List of the values of the function at each time step. Must be of the
+            same length as t_fine_result.
+        """
         raise NotImplementedError
 
 class FixedParareal(BaseParareal):
