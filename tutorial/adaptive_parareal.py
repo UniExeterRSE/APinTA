@@ -93,12 +93,12 @@ class BaseParareal(ABC):
         # This allows it to be passed to the subprocess separately
         if x_initial is None:
             x_initial = self.x_coarse_corr[j_coarse, k_iteration-1]
-        self.print(f'Starting integration for step {j_coarse}\n', end='')
+        self.print(f'Starting integration for coarse step {j_coarse}\n', end='')
         
         t_fine_result, integ_result = self.fine_integration(
             self.t_coarse[j_coarse],self.t_coarse[j_coarse+1], x_initial, j_coarse, k_iteration)
         
-        self.print(f'Done integration for step {j_coarse}\n', end='')
+        self.print(f'Done integration for coarse step {j_coarse}\n', end='')
         return (t_fine_result, integ_result)
         
     def _coarse_correction(self, t_coarse, k_iteration):

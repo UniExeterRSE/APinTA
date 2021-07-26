@@ -28,29 +28,43 @@ def nu_d2udx2(u, dx, nu):
 def initial_func(x):
     return np.sin(2*np.pi*x)
 
-def scipy_func(u_nplus, u_n, dt, dx, nu):
-    zero = u_nplus - u_n - dt*(nu_d2udx2(u_nplus, dx, nu) - u_dudx(u_nplus, dx))
+def scipy_func(u_nplus, u_n, dt, dx, nu, q_n):
+    zero = u_nplus - u_n - dt*(nu_d2udx2(u_nplus, dx, nu) + q_n - u_dudx(u_nplus, dx))
     return zero
 
 def imexRK_scipy_func(u_1, u_n_part, dt, dx, nu):
     zero = u_1 - u_n_part - dt*nu_d2udx2(u_1, dx, nu)
     return zero
 
-def burgers_explicitRK(u_n, dt, dx, nu):
-    u_1 = u_n + dt*nu_d2udx2(u_n, dx, nu) - dt/2*u_dudx(u_n, dx)
-    return u_n + dt*(nu_d2udx2(u_1, dx, nu) - u_dudx(u_1, dx))
+def burgers_explicitRK(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None):
+    q_1 = 0
+    q_n = 0
+    if Q_func and x_vals is not None and t:
+        q_n = Q_func(t, x_vals, nu)
+        q_1 = Q_func(t + dt/2, x_vals, nu)
+    u_1 = u_n + dt*(nu_d2udx2(u_n, dx, nu) + q_n) - dt/2*u_dudx(u_n, dx)
+    return u_n + dt*(nu_d2udx2(u_1, dx, nu) + q_1- u_dudx(u_1, dx))
 
-def burgers_imexRK(u_n, dt, dx, nu):
-    u_n_dep = u_n - dt/2*u_dudx(u_n, dx)
+def burgers_imexRK(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None):
+    q_1 = 0
+    if Q_func and x_vals is not None and t:
+        q_1 = Q_func(t + dt/2, x_vals, nu)
+    u_n_dep = u_n + dt*q_1 - dt/2*u_dudx(u_n, dx)
     u_1 = optimize.fsolve(imexRK_scipy_func, u_n, (u_n_dep, dt, dx, nu))
-    return u_n + dt*(nu_d2udx2(u_1, dx, nu) - u_dudx(u_1, dx))
+    return u_n + dt*(nu_d2udx2(u_1, dx, nu) + q_1 - u_dudx(u_1, dx))
 
-def burgers_scipy(u_n, dt, dx, nu):
-    u_nplus = optimize.fsolve(scipy_func, u_n, (u_n, dt, dx, nu))
+def burgers_scipy(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None):
+    q_nplus = 0
+    if Q_func and x_vals is not None and t:
+        q_nplus = Q_func(t+dt, x_vals, nu)
+    u_nplus = optimize.fsolve(scipy_func, u_n, (u_n, dt, dx, nu, q_nplus))
     return u_nplus
 
-def burgers_fixed_point(u_n, dt, dx, nu, tol=1e-5, max_iterations=10, x_vals=None, t=None):
+def burgers_fixed_point(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None, tol=1e-5, max_iterations=10):
     u_k = u_n
+    q_nplus = 0
+    if Q_func and x_vals is not None and t:
+        q_nplus = Q_func(t+dt, x_vals, nu)
     if PLOT_ITERATION:
         fig = plt.figure()
         fig.suptitle(f'Time: {t}')
@@ -63,7 +77,7 @@ def burgers_fixed_point(u_n, dt, dx, nu, tol=1e-5, max_iterations=10, x_vals=Non
             ax[i].plot(x_vals, u_k)
             ax[i].plot(x_vals, first_derivative)
             ax[i].plot(x_vals, second_derivative)
-        u_k = u_n + dt*(second_derivative - first_derivative)
+        u_k = u_n + dt*(second_derivative + q_nplus - first_derivative)
         if max(abs(u_k-u_kminus)) < tol:
             break
     if PLOT_ITERATION:
@@ -91,8 +105,7 @@ def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu, burgers_
     u_vals[0, :] = x0
     
     for i in range(1, num_t):
-        u_vals[i, :] = burgers_func(u_vals[i-1, :], dt, dx, nu)
-        # u_vals[i, :] = burgers_fixed_point(u_vals[i-1, :], dt, dx, nu, x_vals=x_vals, t=t_vals[i])
+        u_vals[i, :] = burgers_func(u_vals[i-1, :], dt, dx, nu, x_vals, t_vals[i])
         
     return t_vals, u_vals
 
@@ -122,6 +135,7 @@ def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None):
     ax.set_xlabel("x")
     ax.set_ylabel("t")
     ax.set_zlabel("u")
+    ax.set_zlim3d([-1.5, 1.5])
     if title:
         ax.set_title(title)
     
@@ -167,6 +181,7 @@ def errors_tmax(t_max_vals, x_values, x0, n_coarse, n_fine, iterations):
         t_vals, u_vals = solve_burgers((0,t), x_values, n_fine*n_coarse, x0, NU)
         *_, t_fine, u_fine = pr.parareal(0, t, n_coarse, n_fine, iterations, x0, integ_burgers,
                                          integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
+        u_fine = u_fine.swapaxes(0,1).swapaxes(0,3) # Change axis order to old ordering
         para_t, para_u = join_fine(t_fine, u_fine)
         para_u = para_u.swapaxes(0,1)
 
@@ -191,6 +206,7 @@ def errors_discretisation(dx_div_vals, n_fine_mult_vals, dx0, n_fine0, x_range, 
         print('Starting parareal')
         *_, t_fine, u_fine = pr.parareal(0, t_max, n_coarse, n_fine, iterations, x_initial, integ_burgers,
                                          integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
+        u_fine = u_fine.swapaxes(0,1).swapaxes(0,3) # Change axis order to old ordering
         para_t, para_u = join_fine(t_fine, u_fine)
         para_u = para_u.swapaxes(0,1)
 
