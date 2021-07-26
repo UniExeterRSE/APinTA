@@ -22,12 +22,14 @@
 
 \section{Introduction}
 
-This document gives an overview of the profiling tools available to the APinTA-PDEs project. Although this report primarily focusses on Firedrake the profiling tools evaluated could be used for profiling other codes used by the project. Section~\ref{section:target_platforms} presents the target platforms being considered in this report and reviews the hardware and software available on these systems. 
+In order to understand the performance characteristics of numerical schemes, and the impact of potential optimisations it is necessary to gather information beyond simple measures of elapsed run times. A number of profiling tools exist which are capable of gathering performance information from applications parallelised using MPI. This enables information to be gathered about the application for example the time spent in MPI calls and the identification of performance problems such as load imbalance. This document gives an overview of the profiling tools available to the APinTA-PDEs project focussing on tools which can provide information about MPI and related performance issues. Although this report primarily focusses on Firedrake the profiling tools evaluated could be used for profiling other codes used by the project.
+
+Section~\ref{section:target_platforms} presents the target platforms being considered in this report and reviews the hardware and software available on these systems. 
 
 \section{Target platforms}
 \label{section:target_platforms}
 
-The target HPC platforms for the project are Archer-2 (national tier-1), Isambard (national tier-2) and Isca (local tier-3). Isambard has two separate systems based on the ARM64 architecture: the XCI system which is an established production system, and the A64FX system which is a newer system. The A64FX system should be considered a stretch objective as the hardware and software are less well known to us. We have also purchased a local server which is designed to be similar to an Archer compute node, although it will run Ubuntu which will make it easier to build Firedrake. The server can function as a reference installation as it will use an unmodified Firedrake install script, rather than the more customised installations on the HPC platforms which will use non-standard components, for example MPI libraries and maths libraries. An overview of the hardware in the target platforms is shown in Table~\ref{tab:hardware}.
+An overview of the hardware in the target platforms for this project is shown in Table~\ref{tab:hardware}. The target HPC platforms are Archer-2 (national tier-1), Isambard (national tier-2) and Isca (local tier-3). Isambard has two separate systems based on the ARM64 architecture: the XCI system which is an established production system, and the A64FX system which is a newer system. The A64FX system should be considered a stretch objective as the hardware and software are relatively new and less well tested. We have also purchased a local server which is designed to be similar to an Archer compute node, although it will run Ubuntu which will make it easier to build Firedrake. The server can function as a reference installation as it will use an unmodified Firedrake install script, rather than the more customised installations on the HPC platforms which will use non-standard components, for example MPI libraries and maths libraries. 
 %
 \begin{table}[htp]
 \begin{center}
@@ -48,7 +50,6 @@ Server         & AMD x86\_64         & 128        & 256 GB DRAM  & None         
 \end{table}%
 
 An overview of the software stacks on the target platforms is shown in Table~\ref{tab:software}. 
-Each HPC platform has the GNU compilers, a compiler from the processor vendor (AMD, Intel, ARM and Fujitsu) and Cray systems also have the Cray compiler\footnote{On Isambard A64FX run \texttt{module use /lustre/software/aarch64/modulefiles} to make extra modules available}.
 \begin{table}[htp]
 \begin{center}
 \begin{tabular}{|l|l|l|l|l|}
@@ -58,8 +59,8 @@ System         & Compilers               & MPI libraries  & Maths lib.       & P
 Archer-2       & Cray, GNU, AOCC         & Cray MPICH2     & Cray libsci     & Cray      \\
 Isambard XCI   & Cray, GNU, ARM          & Cray MPICH2     & Cray libsci     & Cray, ARM \\
 Isambard A64FX & Cray, GNU, ARM, Fujitsu & Cray MVAPICH2   & Cray libsci     & ARM       \\
-Isca           & GNU                     & OpenMPI         & OpenBLAS        & None      \\
-Isca           & Intel                   & Intel           & Intel MKL       & Intel     \\
+Isca (GCC)     & GNU                     & OpenMPI         & OpenBLAS        & None      \\
+Isca (Intel)   & Intel                   & Intel           & Intel MKL       & Intel     \\
 Server         & GNU                     & MPICH?          & ???             & None      \\
 \hline
 \end{tabular}
@@ -69,44 +70,146 @@ The Cray profiler is Cray Performance Analysis Tools (PAT), the ARM profilers ar
 The A64FX system did not appear to have a perftools module.}
 \label{tab:software}
 \end{table}
-The GNU compilers are the one compiler family which is available on all the target platforms.
+Each HPC platform has the GNU compilers, a compiler from the processor vendor (AMD, Intel, ARM and Fujitsu) and Cray systems also have the Cray compiler\footnote{On Isambard A64FX run \texttt{module use /lustre/software/aarch64/modulefiles} to make extra modules available}. The GNU compilers are the one compiler family which is available on all the target platforms.
 
-On the Cray systems compilation is handled by wrapper scripts from the Cray Programming Environment. The wrapper script can run different compilers depending on which programming environment module is loaded at compile time (e.g. \texttt{PrgEnv-cray} calls the Cray compiler and \texttt{PrgEnv-gnu} calls the GNU compiler). The MPI library and maths library are then linked by the wrapper script. On Cray systems the standard profiling tool is Cray Performance Analysis Tools (PAT) and on Isambard there is also the ARM Forge profiler\footnote{ARM Forge was previously known as Allinea Forge}.
+On the Cray systems compilation is handled by wrapper scripts from the Cray Programming Environment. The wrapper script can run different compilers depending on which programming environment module is loaded at compile time (e.g. if \texttt{PrgEnv-cray} is loaded then \texttt{cc} calls the Cray C compiler and if \texttt{PrgEnv-gnu} is loaded \texttt{cc} calls the GNU C compiler). The MPI library and maths library (Cray libsci) are then linked by the wrapper script. On Cray systems the standard profiling tool is Cray Performance Analysis Tools (PAT) but on Isambard the profiling tools from the ARM Forge suite\footnote{ARM Forge was previously known as Allinea Forge} are also available.
 
-The software environment on Isca is managed using Easybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which needs to use Intel MPI.
+The software environment on Isca is managed using Easybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which needs to use Intel MPI. However the Intel toolchain can be used with GNU compilers such that the Intel MPI library wrapper scripts call the GNU compilers; the wrapper script \texttt{mpiicc} is the MPI-enabled wrapper for the Intel C compiler with Intel MPI, whereas \texttt{mpicc} is the MPI-enabled wrapper for the GNU C compiler with Intel MPI. Hence is it possible to use the GNU compilers with the Intel MPI library which allows profiling with Intel Trace Analyzer and Collector. 
 
-The server does not currently have any profiling software but an evaluation licence for ARM Forge and/or Intel Parallel Studio could be used to evaluate these tools on the server. There is also the option of installing open source profiling tools on the server. \\
+The server does not currently have any profiling software but Intel's Parallel Studio product is now available for free download as part of the HPC toolkit from the newer OneAPI product\footnote{\url{https://software.intel.com/content/www/us/en/develop/tools/oneapi/all-toolkits.html}}. There is also the option of obtaining an evaluation licence for ARM Forge to test these tools on the server. \\
 
 \noindent
-\textbf{Recommendation: standardise on the GNU compilers for all platforms. This avoids having to manage too many different builds and takes the compiler out of the performance equation (different GCC versions notwithstanding).}
+\textbf{Recommendation: standardise on the GNU compilers for all platforms to avoid having to manage too many different builds. This also takes the compiler out of the performance equation (different GCC versions notwithstanding).}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Profiling tools}
 
-Within Firedrake there are two ways to obtain profiling information:
-\begin{itemize}
-\item Add a PyOP2 timed stage
-\item Request profiling information from PETSc
-\end{itemize}
-These options will be available on all platforms when Firedrake is the target application.
-
-There are also external profilers which are already installed on the target platforms. Different platforms have different profilers available:
+Within Firedrake itself performance information can be obtained from PETSc by adding the \verb+-log_view+ flag when running Firedrake. There is also the ability to time sections of code by adding a PyOP2 timed stage. These options will be available on all platforms when Firedrake is the target application but the rest of this report will look at how external profilers can be used to obtain extra information. There are external profilers already installed on the target platforms with different platforms having different profiling tool available:
+%
 \begin{itemize}
 \item ARM Forge (currently only licensed on Isambard)
-\item Cray PAT (Cray systems only)
 \item Intel Parallel Studio (Intel MPI only)
+\item Cray PAT (Cray systems only)
 \end{itemize}
+%
+Each of these products is a suite of tools and this report will focus on the tools appropriate for understanding the performance of MPI applications.
+
+%---------------------------------------------------------------------------------------------------------------------
 
 \subsection{Test cases}
 
-Plan for testing external profilers:
-\begin{enumerate}
-\item Test with the Mandelbrot examples
-\item Test with Firedrake if possible
-\end{enumerate}
+The profilers will be tested using three different versions of a Mandelbrot set calculation. The different versions parallelise the calculation in different ways and have different performance characteristics:
+\begin{itemize}
+\item Version 1: divides the computational domain into equal sized chunks along the real axis. This introduces a load imbalance.
+\item Version 2: similar to version 1 but interleaves the iterations on the real axis to fix the load balance. This version (and version 1) pack a 2D array into a 1D buffer which is communicated using an \verb+MPI_Reduce+ and constitutes an overhead.
+\item Version 3: implements a manager-worker pattern for distributing the iterations to ensure load balancing. This replaces the \verb+MPI_Reduce+ with point-to-point communication between the manager-process and the worker processes. One process (the manager process) does not perform any calculations which adversely affects performance with small numbers of MPI processes. However this version scales better to larger numbers of MPI processes.
+\end{itemize}
 
-Use the Mandelbrot examples to show whether the profiler can spot load imbalance vs. overhead (version 1 vs. version 2) and can show the difference between collectives and point-to-point communication (version 2 vs version 3).
+The following tests will be used to demonstrate the profiling tools:
+\begin{itemize}
+\item Test 1: version 1, no I/O, 4 MPI processes
+\item Test 2: version 1, with I/O, 4 MPI processes
+\item Test 3: version 2, no I/O, 4 MPI processes
+\item Test 4: version 3, no I/O, 4 MPI processes
+\item Test 5: version 3, no I/O, 16 MPI processes 
+\end{itemize}
+These examples show the load imbalance vs. overhead (version 1 vs. version 2) and can the difference between collectives and point-to-point communication (version 2 vs version 3). The I/O is performed by writing to an ASCII file which causes a substantial overhead compared to the case without I/O.
+
+\textbf{Test with a Firedrake example if possible. What to use?}
+
+%---------------------------------------------------------------------------------------------------------------------
+
+\subsection{Intel Parallel Studio}
+
+The MPI profiler in Intel Parallel Studio is called Intel Trace Analyzer and Collector (ITAC). Other profiling tools are available which provide information node-level performance.
+
+\subsubsection{Intel Trace Analyzer and Collector}
+
+In this example the Mandelbrot executable will be build with MPI tracing enabled. Firstly load the modules for the Intel compilers and the ITAC tool. 
+\begin{verbatim}
+> module load intel/2017b
+> module load itac/2017.1.024
+\end{verbatim}
+Then compile the executable with \texttt{-trace} flag:
+\begin{verbatim}
+> mpicc -trace -o mandelbrot mandelbrot_mpi.c
+\end{verbatim}
+The \texttt{intel} and \texttt{itac} modules need to be loaded in the job script but no other modifications are required to the job script. When the job runs a number of additional files are generated, including a file with a \texttt{.stf} extension which is the trace file.
+The profiling output can be viewed opening the trace file with the Trace Analyzer GUI:
+\begin{verbatim}
+> traceanalyzer.bin mandelbrot_mpi.stf &
+\end{verbatim}
+
+\noindent
+\textbf{Test 1:} 
+Figure~\ref{fig:test1_ITAC_summary} (top) shows the opening summary page for test 1 (Mandelbrot version 1, no I/O, 4 MPI processes).
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/test1_summary}
+\includegraphics[scale=0.3]{figures/test1_eventTimeline}
+\caption{Intel Trace Analyzer plots for test 1. On the summary page (top) the load imbalance shows up as a large fraction of time spent in \texttt{MPI\_Reduce}. The event timeline (bottom) shows that process 2 takes longer than the other processes to complete its iterations which results in the other processes waiting at the \texttt{MPI\_Reduce} call.}
+\label{fig:test1_ITAC_summary}
+\end{center}
+\end{figure}
+This test has a load imbalance which is seen as a large fraction of time spent in \texttt{MPI\_Reduce}. The reduce itself is not time consuming (all communication takes place on the same compute node) but this is the blocking collective where the MPI processes synchronise. This can be seen more clearly in the lower panel of figure~\ref{fig:test1_ITAC_summary} which shows the event timeline. To view the event timeline as seen in this figure:
+\begin{itemize}
+\item Click the continue button on the summary page
+\item Select \texttt{Charts} $\rightarrow$ \texttt{Event Timeline} to open a new pane showing process activity over time.
+\item In the lower left pane select the \texttt{Load Balance} tab and click the \texttt{Show pies} button. 
+\item Right click on a red MPI section in the timeline and choose \texttt{Ungroup MPI} from the drop down menu
+\end{itemize}
+The timeline shows that process 2 is taking much longer to complete its than the other processes which has resulted in processes 0, 1 and 3 waiting at the \verb+MPI_Reduce+ call.
+
+
+\noindent
+\textbf{Test 2:} this test is similar to test 1 but has I/O enabled. The summary page (see figure~\ref{fig:test2_ITAC_summary}) shows a significantly longer runtime (450s vs. 250s) and significant time spent in \verb+MPI_Barrier+. 
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/test2_summary}
+\includegraphics[scale=0.3]{figures/test2_eventTimeline}
+\caption{Intel Trace Analyzer plots for test 2.}
+\label{fig:test2_ITAC_summary}
+\end{center}
+\end{figure}
+The I/O is carried by process 0 which causes all the other processes to wait at a barrier at the end of the program (processes are synchronised before a final run time is reported by process 0). The effect of switching on I/O has been to introduce another load imbalance, this time with process 0 working and all other processes waiting. This can be seen clearly in the timeline where there are two distinct phases both of which have a load imbalance, but is less clear from the summary or pie charts alone.
+
+\noindent
+\textbf{Test 3:}  
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/test3_summary}
+\includegraphics[scale=0.3]{figures/test3_eventTimeline}
+\caption{Intel Trace Analyzer plots for test 3.}
+\label{fig:test3_ITAC_summary}
+\end{center}
+\end{figure}
+
+\noindent
+\textbf{Test 4:}  \texttt{Charts} $\rightarrow$ \texttt{message profile}
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/test4_summary}
+\includegraphics[scale=0.3]{figures/test4_eventTimeline}
+\caption{Intel Trace Analyzer plots for test 4.}
+\label{fig:test4_ITAC_summary}
+\end{center}
+\end{figure}
+
+\noindent
+\textbf{Test 5:}  
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/test5_summary}
+\includegraphics[scale=0.3]{figures/test5_eventTimeline}
+\caption{Intel Trace Analyzer plots for test 5.}
+\label{fig:test5_ITAC_summary}
+\end{center}
+\end{figure}
+
+\subsubsection{Firedrake}
+
+Previously working on Isca with the Intel build. 
 
 %---------------------------------------------------------------------------------------------------------------------
 
@@ -189,16 +292,10 @@ The Performance Report tool has provided a clear overview of the application per
 
 \subsubsection{MAP}
 
-\subsubsection{Python}
+\subsubsection{Firedrake}
 
 ARM Forge can be used to profile python applications. 
 Make sure to add the \verb+-j 1+ flag when using ARM profilers on Isambard otherwise there can be a hang on exit\footnote{\url{https://developer.arm.com/documentation/101136/2102/Appendix/Known-issues/Arm-MAP}} (this appears to be specific to the ARM64 architecture).
-
-%---------------------------------------------------------------------------------------------------------------------
-
-\subsection{Intel Parallel Studio}
-
-Previously working on Isca with the Intel build. Intel MPI is required for the Trace Analyzer and Collector profiler to work. We should be able to use Intel MPI with the GCC compilers.
 
 %---------------------------------------------------------------------------------------------------------------------
 
@@ -222,19 +319,21 @@ It's not clear how to use Cray PAT with python/Firedrake. Loading the perftools-
 Table~\ref{tab:profiler_summary} summarises the capabilities of the profiling tools reviewed in this section.
 \begin{table}[htp]
 \begin{center}
-\begin{tabular}{|l|c|c|c|c|}
+\begin{tabular}{|l|c|c|c|}
 \hline
-Profiler              &  Max MPI procs  &  C/C++      & Fortran     & Python         \\
+Profiler              &  C/C++/Fortran & Firedrake \\
 \hline
-ARM Forge             &   ??            & \checkmark  &  \checkmark &  \checkmark    \\
-Intel Parallel Studio &   ??            & \checkmark  &  \checkmark &  ??             \\
-Cray PAT              &   Unlimited     & \checkmark  &  \checkmark &                \\
+ARM Forge             & \checkmark     &  \checkmark      \\
+Intel Parallel Studio & \checkmark     &  \checkmark      \\
+Cray PAT              & \checkmark     &                  \\
 \hline
 \end{tabular}
 \end{center}
 \caption{Summary of profiling tools}
 \label{tab:profiler_summary}
 \end{table}%
+%
+ARM Forge and Intel Parallel Studio can profile Firedrake on Isambard and Isca respectively. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -273,6 +372,11 @@ Server         &  ??             & \\
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Conclusions and recommendations}
+
+Recommendations:
+\begin{enumerate}
+\item standardise on the GNU compilers for all platforms to avoid having to manage too many different builds. This also takes the compiler out of the performance equation (different GCC versions notwithstanding).
+\end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
