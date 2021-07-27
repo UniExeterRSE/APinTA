@@ -87,7 +87,7 @@ class AdaptiveBrusselator(BaseParareal):
         else:
             return self.target_eta/2
         
-    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray) -> np.ndarray:
+    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
         sol = integ.solve_ivp(scipy_brusselator, (a,b), x_in)
         return sol.y[:, -1]
     

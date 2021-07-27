@@ -2,88 +2,14 @@ from typing import Callable, Tuple
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import scipy.optimize as optimize
 
 import parareal as pr
+from burgers_funcs import *
 
 NU = 0.02
-PLOT_ITERATION = False
-
-def u_dudx(u, dx):
-    u_iplus = np.roll(u, -1)
-    u_iminus = np.roll(u, 1)
-    result = u*(u_iplus - u_iminus)/(2*dx)
-    result[0] = 0
-    result[-1] = 0
-    return result
-
-def nu_d2udx2(u, dx, nu):
-    u_iplus = np.roll(u, -1)
-    u_iminus = np.roll(u, 1)
-    result = nu*(u_iplus - 2*u + u_iminus)/dx**2
-    result[0] = 0
-    result[-1] = 0
-    return result
 
 def initial_func(x):
     return np.sin(2*np.pi*x)
-
-def scipy_func(u_nplus, u_n, dt, dx, nu, q_n):
-    zero = u_nplus - u_n - dt*(nu_d2udx2(u_nplus, dx, nu) + q_n - u_dudx(u_nplus, dx))
-    return zero
-
-def imexRK_scipy_func(u_1, u_n_part, dt, dx, nu):
-    zero = u_1 - u_n_part - dt*nu_d2udx2(u_1, dx, nu)
-    return zero
-
-def burgers_explicitRK(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None):
-    q_1 = 0
-    q_n = 0
-    if Q_func and x_vals is not None and t:
-        q_n = Q_func(t, x_vals, nu)
-        q_1 = Q_func(t + dt/2, x_vals, nu)
-    u_1 = u_n + dt*(nu_d2udx2(u_n, dx, nu) + q_n) - dt/2*u_dudx(u_n, dx)
-    return u_n + dt*(nu_d2udx2(u_1, dx, nu) + q_1- u_dudx(u_1, dx))
-
-def burgers_imexRK(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None):
-    q_1 = 0
-    if Q_func and x_vals is not None and t:
-        q_1 = Q_func(t + dt/2, x_vals, nu)
-    u_n_dep = u_n + dt*q_1 - dt/2*u_dudx(u_n, dx)
-    u_1 = optimize.fsolve(imexRK_scipy_func, u_n, (u_n_dep, dt, dx, nu))
-    return u_n + dt*(nu_d2udx2(u_1, dx, nu) + q_1 - u_dudx(u_1, dx))
-
-def burgers_scipy(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None):
-    q_nplus = 0
-    if Q_func and x_vals is not None and t:
-        q_nplus = Q_func(t+dt, x_vals, nu)
-    u_nplus = optimize.fsolve(scipy_func, u_n, (u_n, dt, dx, nu, q_nplus))
-    return u_nplus
-
-def burgers_fixed_point(u_n, dt, dx, nu, x_vals=None, t=None, Q_func=None, tol=1e-5, max_iterations=10):
-    u_k = u_n
-    q_nplus = 0
-    if Q_func and x_vals is not None and t:
-        q_nplus = Q_func(t+dt, x_vals, nu)
-    if PLOT_ITERATION:
-        fig = plt.figure()
-        fig.suptitle(f'Time: {t}')
-        ax = fig.subplots(max_iterations+1, 1)
-    for i in range(max_iterations):
-        u_kminus = u_k
-        first_derivative = u_dudx(u_k, dx)
-        second_derivative = nu_d2udx2(u_k, dx, nu)
-        if PLOT_ITERATION:
-            ax[i].plot(x_vals, u_k)
-            ax[i].plot(x_vals, first_derivative)
-            ax[i].plot(x_vals, second_derivative)
-        u_k = u_n + dt*(second_derivative + q_nplus - first_derivative)
-        if max(abs(u_k-u_kminus)) < tol:
-            break
-    if PLOT_ITERATION:
-        ax[max_iterations].plot(x_vals, u_k)
-        plt.show()
-    return u_k
 
 def integ_burgers(dt, dx, n, u0, nu=0.02, burgers_func: Callable = burgers_scipy, **func_kwargs):
     u_len = len(u0)
@@ -121,11 +47,11 @@ def join_fine(t_fine, u_fine):
         
     return (t_joined, u_joined)
     
-def plot_burgers(t, x, u, title=None, save_name=None):
+def plot_burgers(t, x, u, title=None, save_name=None, zlim=[-1.5, 1.5]):
     shape0, shape1 = u.shape
-    plot_burgers_fine(t.reshape(1, shape0), x, u.reshape(shape0, 1, shape1), title, save_name)
+    plot_burgers_fine(t.reshape(1, shape0), x, u.reshape(shape0, 1, shape1), title, save_name, zlim)
     
-def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None):
+def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None, zlim=[-1.5, 1.5]):
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(projection='3d')
     
@@ -135,7 +61,7 @@ def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None):
     ax.set_xlabel("x")
     ax.set_ylabel("t")
     ax.set_zlabel("u")
-    ax.set_zlim3d([-1.5, 1.5])
+    ax.set_zlim3d(zlim)
     if title:
         ax.set_title(title)
     

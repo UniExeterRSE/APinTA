@@ -63,7 +63,8 @@ class BaseParareal(ABC):
         for j_coarse in range(self.n_coarse):
             self.x_coarse[j_coarse+1, 0] = self.coarse_integration_func(self.t_coarse[j_coarse],
                                                                    self.t_coarse[j_coarse+1],
-                                                                   self.x_coarse[j_coarse, 0])
+                                                                   self.x_coarse[j_coarse, 0],
+                                                                   j_coarse, 0)
             self.x_coarse_corr = self.x_coarse.copy()
         
         for k in range(1, self.iterations):
@@ -103,7 +104,8 @@ class BaseParareal(ABC):
         
     def _coarse_correction(self, t_coarse, k_iteration):
         self.x_coarse[t_coarse+1, k_iteration] = self.coarse_integration_func(
-            self.t_coarse[t_coarse],self.t_coarse[t_coarse+1], self.x_coarse_corr[t_coarse, k_iteration])
+            self.t_coarse[t_coarse], self.t_coarse[t_coarse+1], self.x_coarse_corr[t_coarse, k_iteration],
+            t_coarse, k_iteration)
         self.x_coarse_corr[t_coarse+1, k_iteration] = self.x_coarse[t_coarse+1, k_iteration] -\
             self.x_coarse[t_coarse+1, k_iteration-1] + self.x_fine[t_coarse, k_iteration][-1]
         
@@ -120,7 +122,7 @@ class BaseParareal(ABC):
         return np.linspace(a, b, self.n_coarse+1)
     
     @abstractmethod
-    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray) -> np.ndarray:
+    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
         """Coarsely integrates x_in by one step.
         Must be overridden in a subclass.
         
@@ -169,7 +171,7 @@ class FixedParareal(BaseParareal):
         raise NotImplementedError
     
 class PRLorenz(FixedParareal):
-    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray) -> np.ndarray:
+    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
         return RK4(lorenz63, b-a, 2, x_in)[-1] # type: ignore
     
     def fine_integration_func(self, t_vals: List[float], x_in: np.ndarray) -> List[np.ndarray]:

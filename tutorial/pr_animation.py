@@ -5,9 +5,9 @@ from matplotlib.colors import Colormap, Normalize
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.lines import Line2D
-from matplotlib.axes._axes import Axes
+from matplotlib.axes import Axes
 from mpl_toolkits.mplot3d.art3d import Line3D
-from mpl_toolkits.mplot3d.axes3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D
 from abc import abstractmethod, ABC
 
 T = TypeVar('T', bound='_PRanimation')
