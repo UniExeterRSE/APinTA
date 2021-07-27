@@ -34,6 +34,6 @@ echo "Fetching install script"
 curl -O https://raw.githubusercontent.com/firedrakeproject/firedrake/master/scripts/firedrake-install
 
 echo "Installing"
-python firedrake-install --no-package-manager --mpicc mpiicc --mpicxx mpiicpc --mpif90 mpiifort --mpiexec mpirun $@
+python firedrake-install --disable-ssh --no-package-manager --mpicc mpiicc --mpicxx mpiicpc --mpif90 mpiifort --mpiexec mpirun $@
 
 echo "Done"
