@@ -20,6 +20,25 @@
 \tableofcontents
 \pagebreak
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{To do}
+
+\begin{enumerate}
+\item Write up ITAC examples
+\item Builds on Isca: GCC reference, Intel MPI+GCC for profiling, Platform optimised Intel toolchain
+\item Firedrake example on Isca
+\item Firedrake example with Performance Reports
+\item Add examples using ARM MAP
+\item Add examples using Cray PAT perftools-lite
+\item Describe other capabilities of Cray PAT in addition to perftools-lite including rank re-ordering
+\item Write conclusions and recommendations section: include the next steps e.g. how to switch to reference BLAS/Lapack to test the impact of maths libraries
+\end{enumerate}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{Introduction}
 
 In order to understand the performance characteristics of numerical schemes, and the impact of potential optimisations it is necessary to gather information beyond simple measures of elapsed run times. A number of profiling tools exist which are capable of gathering performance information from applications parallelised using MPI. This enables information to be gathered about the application for example the time spent in MPI calls and the identification of performance problems such as load imbalance. This document gives an overview of the profiling tools available to the APinTA-PDEs project focussing on tools which can provide information about MPI and related performance issues. Although this report primarily focusses on Firedrake the profiling tools evaluated could be used for profiling other codes used by the project.
@@ -83,21 +102,7 @@ The server does not currently have any profiling software but Intel's Parallel S
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Profiling tools}
-
-Within Firedrake itself performance information can be obtained from PETSc by adding the \verb+-log_view+ flag when running Firedrake. There is also the ability to time sections of code by adding a PyOP2 timed stage. These options will be available on all platforms when Firedrake is the target application but the rest of this report will look at how external profilers can be used to obtain extra information. There are external profilers already installed on the target platforms with different platforms having different profiling tool available:
-%
-\begin{itemize}
-\item ARM Forge (currently only licensed on Isambard)
-\item Intel Parallel Studio (Intel MPI only)
-\item Cray PAT (Cray systems only)
-\end{itemize}
-%
-Each of these products is a suite of tools and this report will focus on the tools appropriate for understanding the performance of MPI applications.
-
-%---------------------------------------------------------------------------------------------------------------------
-
-\subsection{Test cases}
+\section{Test cases}
 
 The profilers will be tested using three different versions of a Mandelbrot set calculation. The different versions parallelise the calculation in different ways and have different performance characteristics:
 \begin{itemize}
@@ -116,7 +121,22 @@ The following tests will be used to demonstrate the profiling tools:
 \end{itemize}
 These examples show the load imbalance vs. overhead (version 1 vs. version 2) and can the difference between collectives and point-to-point communication (version 2 vs version 3). The I/O is performed by writing to an ASCII file which causes a substantial overhead compared to the case without I/O.
 
-\textbf{Test with a Firedrake example if possible. What to use?}
+\textbf{Test with a Firedrake example e.g. high resolution DG advection. This will show point-to-point communication pattern from domain decomposition.}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Profiling tools}
+
+Within Firedrake itself performance information can be obtained from PETSc by adding the \verb+-log_view+ flag when running Firedrake. There is also the ability to time sections of code by adding a PyOP2 timed stage. These options will be available on all platforms when Firedrake is the target application but the rest of this report will look at how external profilers can be used to obtain extra information. There are external profilers already installed on the target platforms with different platforms having different profiling tool available:
+%
+\begin{itemize}
+\item ARM Forge (currently only licensed on Isambard)
+\item Intel Parallel Studio (Intel MPI only)
+\item Cray PAT (Cray systems only)
+\end{itemize}
+%
+Each of these products is a suite of tools and this report will focus on the tools appropriate for understanding the performance of MPI applications.
 
 %---------------------------------------------------------------------------------------------------------------------
 
@@ -337,35 +357,37 @@ ARM Forge and Intel Parallel Studio can profile Firedrake on Isambard and Isca r
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Builds}
+\section{HPC builds}
+
+There are three primary HPC platforms for the project: Isca (Exeter university Cluster), Isambard (GW4 tier-2), Archer-2 (national facility). Work on the ARCHER-2 build of Firedrake is supported by an Archer-2 eCSE project (ARCHER2-eCSE04-5 PI: Dr David A Ham (Imperial College) ``Scalable and robust Firedrake deployment on ARCHER2 and beyond'') and will not be considered further here. 
 
 Plan:
 \begin{enumerate}
 \item Working builds on main target platforms
-\item Optimised builds on main target platforms: use optimised maths libraries but beware threading
+\item Optimised builds on main target platforms which for this project means using a vendor optimised maths library appropriate for the platform.
 \end{enumerate}
 %
-
 \begin{table}[htp]
 \begin{center}
-\begin{tabular}{|l|c|c|}
+\begin{tabular}{|l|l|c|}
 \hline
 Platform       &  Build status   & Profilers           \\
 \hline
-Archer2        &  ??             & \\
-Isambard XCI   &  working        & \texttt{perf-report} \\
-Isambard A64FX &  ??             & \\
-Isca           &  ??             & \\
-Server         &  ??             & \\
+Isca           &  GCC working    & \\
+Isambard XCI   &  GCC working    & \texttt{perf-report} \\
+Archer2        &  eCSE project   & \\
 \hline
 \end{tabular}
 \end{center}
-\caption{Status of Firedrake builds and profiling for the target platforms}
+\caption{Status of Firedrake builds and profiling for the target HPC platforms}
 \label{table:build_status}
 \end{table}%
 
 \begin{itemize}
 \item Isambard build of Firedrake: what's happening with BLAS/Lapack etc? Scalapack gets built as part of the PETSc build but is also available from \texttt{libsci}
+\item Flag to PETSc can be used to switch to reference version of BLAS/Lapack
+\item Vendor supplied maths libraries often have support for multi-threading which needs to be switched off when using Firedrake
+\item Building Firedrake on Isca with the Intel compilers is not working because pybind11 requires Intel C++ compiler v18 or newer.
 \end{itemize}
 
 
@@ -375,7 +397,9 @@ Server         &  ??             & \\
 
 Recommendations:
 \begin{enumerate}
-\item standardise on the GNU compilers for all platforms to avoid having to manage too many different builds. This also takes the compiler out of the performance equation (different GCC versions notwithstanding).
+\item Standardise on the GNU compilers for all platforms to avoid having to manage too many different builds. This also takes the compiler out of the performance equation (different GCC versions notwithstanding).
+\item Carry out initial performance studies using Firedrake for rapid prototyping. Use ITAC and Performance Reports/MAP to profile Firedrake on Isca and Isambard respectively. This enables profiling up to the 20\,992 cores available on Isambard.
+\item Once feasibility has been established implement the algorithm in FRric and run on Archer-2 with profiling using Cray PAT. This will enable performance studies beyond 20\,000 cores.
 \end{enumerate}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
