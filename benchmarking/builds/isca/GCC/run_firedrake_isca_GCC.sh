@@ -44,6 +44,9 @@ module load libxml2/2.9.8-GCCcore-7.3.0
 # Suppress warnings from OpenMPI
 export OMPI_MCA_mpi_warn_on_fork=0
 
+# Make sure libraries do not use threading
+export OMP_NUM_THREADS=1
+
 # Run the script
 echo "Running Firedrake on ${SLURM_NTASKS} processors and ${SLURM_NNODES} nodes"
 mpirun -x LD_LIBRARY_PATH -x VIRTUAL_ENV -x PATH python ${script}
