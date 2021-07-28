@@ -95,7 +95,7 @@ class AdaptiveBrusselator(BaseParareal):
                          coarse_step: int, iteration: int) -> Tuple[List[float], List[np.ndarray]]:
         accuracy = self.get_fine_accuracy(iteration)
         sol = integ.solve_ivp(scipy_brusselator, (t_start, t_end), x_initial, 'Radau', dense_output=True, atol=accuracy, rtol=0)
-        self.print(f'Iteration: {iteration}, step: {coarse_step}, evals:{sol.nfev}, accuracy:{accuracy}')
+        self._print(f'Iteration: {iteration}, step: {coarse_step}, evals:{sol.nfev}, accuracy:{accuracy}')
         
         self.nfev[coarse_step, iteration] = sol.nfev
         # Output as many points as calls made by scipy to give an indication of the number of fine steps
@@ -109,7 +109,7 @@ def adaptive_main():
     solve = AdaptiveBrusselator(0, 12, 12/32, 10, x0, eta, 10)
     solve.solve()
     
-    animator = PRanimationAdaptive2D(solve.x_coarse, solve.x_fine, [[0,4], [0.5, 5]], ['x', 'y'], 10, 1,
+    animator = PRanimationAdaptive2D(solve.x_coarse_corr, solve.x_fine, [[0,4], [0.5, 5]], ['x', 'y'], 10, 1,
                              title='Brusselator', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
     animator.animate('tutorial/animations/brusselator_adaptive.gif', 10)
     

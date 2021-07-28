@@ -10,6 +10,7 @@ def _get_Q(u_sym: Expr, x_sym: Symbol, t_sym: Symbol, nu: Symbol, *args: Tuple[S
     return sp.lambdify([*args, t_sym, x_sym, nu], q_sym, 'numpy')
 
 def _fix_func_str(func_str: str):
+    """Removes the first line and and np. in front of numpy funcs"""
     func_str = '\n'.join(func_str.split('\n')[1:])
     func_str = func_str.replace('sin', 'np.sin')
     func_str = func_str.replace('cos', 'np.cos')

@@ -38,7 +38,7 @@ def _imexRK_scipy_func(u, u_n_part, dt, dx, nu):
     zero = u - u_n_part - dt*_nu_d2udx2(u, dx, nu)
     return zero
 
-def burgers_imexRK(u_n, dt, dx, nu, thing=None, x_vals=None, t=None, Q_func=None):
+def burgers_imexRK(u_n, dt, dx, nu, _=None, x_vals=None, t=None, Q_func=None):
     q_1 = 0
     if Q_func and x_vals is not None and t is not None:
         q_1 = Q_func(t + dt/2, x_vals, nu)

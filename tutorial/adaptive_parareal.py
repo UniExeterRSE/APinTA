@@ -16,30 +16,53 @@ class BaseParareal(ABC):
         self.n_coarse = n_coarse
         self.iterations = iterations
         
-        self.pool = None
-        self.print_output = False
+        self.print_name: Optional[str] = None
+        self.tol: Optional[float] = None
         
         self.t_coarse = self.get_coarse_t(a, b)
         self.t_fine = np.empty((self.n_coarse+1, self.iterations), object)
         self.t_fine.fill([])
         
-        self.x_coarse = np.empty((self.n_coarse+1, iterations, *self.var_shape))
+        self._x_coarse = np.empty((self.n_coarse+1, iterations, *self.var_shape))
         x0_repeated = self.x0.reshape((1, *self.var_shape)).repeat(iterations, 0)
-        self.x_coarse[0, :] = x0_repeated
-        self.x_coarse_corr = np.empty((self.n_coarse+1, iterations, *self.var_shape))
+        self._x_coarse[0, :] = x0_repeated
+        self.x_coarse_corr = self._x_coarse.copy()
         
         self.x_fine = np.empty((self.n_coarse, self.iterations), object)
         self.x_fine.fill([])
         
-    def solve(self, processors: Optional[int] = None, print_info: bool = False):
-        self.print_output = print_info
+    def solve(self, tolerance: Optional[float] = None,
+              processors: Optional[int] = None, print_ref: Optional[str] = None):
+        """Solve the parareal problem
+        
+        Parameters:
+        tolerance: float or None
+            If this tolerance is reached and is_within_tol is given the solve
+            wil terminate. If None the solve will complete all iterations
+        processors: int or None
+            Number of parallel processes to run. If None the solve will be done
+            in serial
+        print_ref: str or None
+            If None progress information will not be displayed. Otherwise the
+            string will be appended to the start of progress messages (can be 
+            an empty string)
+            
+        Returns:
+        iterations_done: int
+            Number of iterations completed. This will normally be self.iterations-1
+            but can be less if the toelrance is reached.
+            Note: Any values in arrays with iteration index higher than iterations_done
+            will be uninitialsed and should not be used.
+        """
+        self.print_name = print_ref
+        self.tol = tolerance
         if processors is None:
             return self._solve()
         try:
             # Create a pool of subprocesses, each with access to the class
-            print('Creating pool')
+            self._print('Creating pool')
             p = Pool(processors, self.child_process_init, (self,))
-            print('Pool created')
+            self._print('Pool created')
             return self._solve(p)
         finally:
             p.terminate()
@@ -55,20 +78,23 @@ class BaseParareal(ABC):
         global active_obj
         active_obj = _active_obj # type: ignore
         
-    def print(self, *args, **kwargs):
-        if self.print_output:
+    def _print(self, *args, **kwargs):
+        if self.print_name is not None:
+            if self.print_name != '':
+                print(f'{self.print_name}-PR: ', end='')
             print(*args, **kwargs)
             
-    def _solve(self, p: Optional[pool.Pool] = None):
+    def _solve(self, p: Optional[pool.Pool] = None) -> int:
         for j_coarse in range(self.n_coarse):
-            self.x_coarse[j_coarse+1, 0] = self.coarse_integration_func(self.t_coarse[j_coarse],
+            next_coarse = self.coarse_integration_func(self.t_coarse[j_coarse],
                                                                    self.t_coarse[j_coarse+1],
-                                                                   self.x_coarse[j_coarse, 0],
+                                                                   self._x_coarse[j_coarse, 0],
                                                                    j_coarse, 0)
-            self.x_coarse_corr = self.x_coarse.copy()
+            self._x_coarse[j_coarse+1, 0] = next_coarse
+            self.x_coarse_corr[j_coarse+1, 0] = next_coarse
         
         for k in range(1, self.iterations):
-            print(f'----------------- Iteration {k: <2} -----------------')
+            self._print(f'----------------- Iteration {k: <2} -----------------')
             if p is None:
                 for j in range(self.n_coarse):
                     t_result, x_result = self._do_fine_integ(j, k)
@@ -84,6 +110,10 @@ class BaseParareal(ABC):
                     self.t_fine[t, k] = t_result
                     self.x_fine[t, k] = x_result
                     self._coarse_correction(t, k)
+            if self.tol is not None and self.is_within_tol(self.x_coarse_corr[:, k], self.x_coarse_corr[:, k-1]):
+                self._print('Reached tolerance after iteration', k)
+                return k
+        return k
                         
     @staticmethod
     def _parallel_integ(j_coarse, k_iteration, x_initial):
@@ -94,20 +124,20 @@ class BaseParareal(ABC):
         # This allows it to be passed to the subprocess separately
         if x_initial is None:
             x_initial = self.x_coarse_corr[j_coarse, k_iteration-1]
-        self.print(f'Starting integration for coarse step {j_coarse}\n', end='')
+        self._print(f'k={k_iteration: >2} Starting integration for coarse step {j_coarse}\n', end='')
         
         t_fine_result, integ_result = self.fine_integration(
             self.t_coarse[j_coarse],self.t_coarse[j_coarse+1], x_initial, j_coarse, k_iteration)
         
-        self.print(f'Done integration for coarse step {j_coarse}\n', end='')
+        self._print(f'k={k_iteration: >2} Done integration for coarse step {j_coarse}\n', end='')
         return (t_fine_result, integ_result)
         
     def _coarse_correction(self, t_coarse, k_iteration):
-        self.x_coarse[t_coarse+1, k_iteration] = self.coarse_integration_func(
+        self._x_coarse[t_coarse+1, k_iteration] = self.coarse_integration_func(
             self.t_coarse[t_coarse], self.t_coarse[t_coarse+1], self.x_coarse_corr[t_coarse, k_iteration],
             t_coarse, k_iteration)
-        self.x_coarse_corr[t_coarse+1, k_iteration] = self.x_coarse[t_coarse+1, k_iteration] -\
-            self.x_coarse[t_coarse+1, k_iteration-1] + self.x_fine[t_coarse, k_iteration][-1]
+        self.x_coarse_corr[t_coarse+1, k_iteration] = self._x_coarse[t_coarse+1, k_iteration] -\
+            self._x_coarse[t_coarse+1, k_iteration-1] + self.x_fine[t_coarse, k_iteration][-1]
         
     # Methods that can/must be overridden
     def get_coarse_t(self, a: float, b: float) -> np.ndarray:
@@ -120,6 +150,17 @@ class BaseParareal(ABC):
             self.n_coarse+1 and start/end with a/b respectively
         """
         return np.linspace(a, b, self.n_coarse+1)
+    
+    def is_within_tol(self, x_current: np.ndarray, x_previous: np.ndarray) -> bool:
+        """Checks if the parareal solve has reached the desired tolerance and can stop.
+        It can be assumed self.tol has a value
+        By default always returns False but can be overridden
+        
+        Returns:
+        within_tol: bool
+            Has the solve reached tolerance and so should stop
+        """
+        return False
     
     @abstractmethod
     def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
