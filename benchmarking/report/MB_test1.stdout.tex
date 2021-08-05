@@ -1,0 +1,156 @@
+\begin{verbatim}
+#################################################################
+#                                                               #
+#            CrayPat-lite Performance Statistics                #
+#                                                               #
+#################################################################
+
+CrayPat/X:  Version 21.05.0 Revision 89579db89  04/08/21 23:35:55
+Experiment:                  lite  lite-samples
+Number of PEs (MPI ranks):      4
+Numbers of PEs per Node:        4
+Numbers of Threads per PE:      1
+Number of Cores per Socket:    32
+Execution start time:  Thu Aug  5 19:51:20 2021
+System name and speed:  nid00042  2.500 GHz (nominal)
+ARM   ThunderX2 (new)      CPU
+
+
+Avg Process Time:          59.55 secs              
+High Memory:             3,365.8 MiBytes     841.5 MiBytes per PE
+Percent cycles stalled:     33.3 %          
+Instr per Cycle:            1.33
+I/O Write Rate:         1.164873 MiBytes/sec       
+
+Notes for table 1:
+
+  This table shows functions that have significant exclusive sample
+    hits, averaged across ranks.
+  For further explanation, see the "General table notes" below,
+    or use:  pat_report -v -O samp_profile ...
+
+Table 1:  Profile by Function
+
+  Samp% |    Samp |    Imb. |  Imb. | Group
+        |         |    Samp | Samp% |  Function=[MAX10]
+        |         |         |       |   PE=HIDE
+       
+ 100.0% | 5,940.0 |      -- |    -- | Total
+|------------------------------------------------------
+|  55.4% | 3,290.2 |      -- |    -- | MPI
+||-----------------------------------------------------
+||  55.3% | 3,284.8 | 2,029.2 | 50.9% | MPI_Reduce
+||=====================================================
+|  31.8% | 1,891.0 | 2,497.0 | 75.9% | MATH
+||-----------------------------------------------------
+||  31.8% | 1,891.0 | 2,497.0 | 75.9% | hypot
+||=====================================================
+|   9.5% |   562.8 |   464.2 | 60.3% | USER
+||-----------------------------------------------------
+||   9.5% |   562.8 |   464.2 | 60.3% | main
+||=====================================================
+|   3.3% |   196.0 |      -- |    -- | ETC
+||-----------------------------------------------------
+||   1.8% |   107.5 |   143.5 | 76.2% | __mulsc3
+||   1.0% |    60.2 |    76.8 | 74.7% | __hypot_finite
+|======================================================
+
+Notes for table 2:
+
+  This table shows functions, and line numbers within functions, that
+    have significant exclusive sample hits, averaged across ranks.
+  For further explanation, see the "General table notes" below,
+    or use:  pat_report -v -O samp_profile+src ...
+
+Table 2:  Profile by Group, Function, and Line
+
+  Samp% |    Samp |    Imb. |  Imb. | Group
+        |         |    Samp | Samp% |  Function=[MAX10]
+        |         |         |       |   Source
+        |         |         |       |    Line
+        |         |         |       |     PE=HIDE
+       
+ 100.0% | 5,940.0 |      -- |    -- | Total
+|-----------------------------------------------------------------------------
+|  55.4% | 3,290.2 |      -- |    -- | MPI
+||----------------------------------------------------------------------------
+||  55.3% | 3,284.8 | 2,029.2 | 50.9% | MPI_Reduce
+||============================================================================
+|  31.8% | 1,891.0 | 2,497.0 | 75.9% | MATH
+||----------------------------------------------------------------------------
+||  31.8% | 1,891.0 | 2,497.0 | 75.9% | hypot
+||============================================================================
+|   9.5% |   562.8 |      -- |    -- | USER
+||----------------------------------------------------------------------------
+||   9.5% |   562.8 |      -- |    -- | main
+3|        |         |         |       |  PAT_test/runs/test1/mandelbrot_mpi.c
+||||--------------------------------------------------------------------------
+4|||   2.4% |   144.0 |   155.0 | 69.1% | line.85
+4|||   2.0% |   120.8 |   166.2 | 77.2% | line.87
+||||==========================================================================
+||============================================================================
+|   3.3% |   196.0 |      -- |    -- | ETC
+||----------------------------------------------------------------------------
+||   1.8% |   107.5 |      -- |    -- | __mulsc3
+3|        |         |         |       |  ../cray-gcc-9.3.0-202003310324.b29d417121fbe/libgcc/libgcc2.c
+||   1.0% |    60.2 |    76.8 | 74.7% | __hypot_finite
+|=============================================================================
+
+Observation:  MPI utilization
+
+    No suggestions were made because all ranks are on one node.
+
+
+Notes for table 3:
+
+  This table shows energy and power usage for the nodes with the
+    maximum, mean, and minimum usage, as well as the sum of usage over
+    all nodes.
+    Energy and power for accelerators is also shown, if applicable.
+  For further explanation, see the "General table notes" below,
+    or use:  pat_report -v -O program_energy ...
+
+Table 3:  Program energy and power usage (from Cray PM)
+
+   Node |     Node |   Process | PE=HIDE
+ Energy |    Power |      Time | 
+    (J) |      (W) |           | 
+----------------------------------------
+ 13,701 |  230.085 | 59.547615 | Total
+========================================
+
+Notes for table 4:
+
+  This table show the average time and number of bytes written to each
+    output file, taking the average over the number of ranks that
+    wrote to the file.  It also shows the number of write operations,
+    and average rates.
+  For further explanation, see the "General table notes" below,
+    or use:  pat_report -v -O write_stats ...
+
+Table 4:  File Output Stats by Filename
+
+      Avg |      Avg |  Write Rate | Number |    Avg | Bytes/ | File Name=!x/^/(proc|sys)/
+    Write |    Write | MiBytes/sec |     of | Writes |   Call |  PE=HIDE
+ Time per |  MiBytes |             | Writer |    per |        | 
+   Writer |      per |             |  Ranks | Writer |        | 
+     Rank |   Writer |             |        |   Rank |        | 
+          |     Rank |             |        |        |        | 
+|-----------------------------------------------------------------------------
+| 0.000051 | 0.000059 |    1.164873 |      1 |    2.0 |  31.00 | stdout
+|=============================================================================
+Program invocation:  ./mandelbrot
+
+For a complete report with expanded tables and notes, run:
+  pat_report /lustre/home/user/PAT_test/runs/test1/mandelbrot+10863-42s
+
+For help identifying callers of particular functions:
+  pat_report -O callers+src /lustre/home/user/PAT_test/runs/test1/mandelbrot+10863-42s
+To see the entire call tree:
+  pat_report -O calltree+src /lustre/home/user/PAT_test/runs/test1/mandelbrot+10863-42s
+
+For interactive, graphical performance analysis, run:
+  app2 /lustre/home/user/PAT_test/runs/test1/mandelbrot+10863-42s
+
+================  End of CrayPat-lite output  ==========================
+\end{verbatim}

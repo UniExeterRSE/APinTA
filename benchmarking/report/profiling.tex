@@ -145,7 +145,7 @@ Then compile the executable with \texttt{-trace} flag:
 \begin{verbatim}
 > mpicc -trace -o mandelbrot mandelbrot_mpi.c
 \end{verbatim}
-The \texttt{itac} module needs to be loaded in the job script (in addition to the \texttt{intel} module) but no other modifications are required to the job script. When the job runs a number of additional files are generated, including a file with a \texttt{.stf} extension which is the trace file.
+(including the \verb+-g+ flag enables function level information to be obtained but it not required). The \texttt{itac} module needs to be loaded in the job script (in addition to the \texttt{intel} module) but no other modifications are required to the job script. When the job runs a number of additional files are generated, including a file with a \texttt{.stf} extension which is the trace file.
 The profiling output can be viewed opening the trace file with the Trace Analyzer graphical interface:
 \begin{verbatim}
 > traceanalyzer.bin mandelbrot_mpi.stf &
@@ -224,10 +224,13 @@ The point-to-point communication between processes is seen to be most intense at
 
 \subsection{ARM Forge}
 
-The ARM Forge suite of development tools is available on the Isambard system. ARM Forge includes two performance tools: ``Performance Reports'' and ``MAP''. 
-ARM MAP is a profiler which is part of the ARM Forge suite and it can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}. The documentation for Performance Reports says that on Cray systems dynamic linking or explicit linking with the profiling libraries is required\footnote{\url{https://developer.arm.com/documentation/101136/2102/Performance-Reports/Get-started-with-Performance-Reports/Compile-on-Cray-X-series-systems}}. However in the latest Cray compilers dynamic linking is the default so no changes are required to the build process. The following shows an example session and output from Performance Reports on the Isambard XCI system.
+The ARM Forge suite of development tools is available on the Isambard system. ARM Forge includes two performance tools: ``Performance Reports'' and ``MAP''. Performance Reports gives a one page summary of an application's performance. MAP is a profiler for more in-depth analysis which can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}. 
 
-No changes are required at compile time so simply compile the executable as normal, for example using the GCC compiler:
+\subsubsection{Performance Reports}
+
+The documentation for Performance Reports says that on Cray systems dynamic linking or explicit linking with the profiling libraries is required\footnote{\url{https://developer.arm.com/documentation/101136/2102/Performance-Reports/Get-started-with-Performance-Reports/Compile-on-Cray-X-series-systems}}. However in the latest Cray compilers dynamic linking is the default so no changes are required to the build process. The following shows an example session and output from Performance Reports on the Isambard XCI system.
+
+No changes are required at compile time so to compile an executable using the GCC compiler for example:
 \begin{verbatim}
 > module switch PrgEnv-cray PrgEnv-gnu
 > cc -o mandelbrot mandelbrot_mpi.c
@@ -306,23 +309,96 @@ With this test only 3 out of 4 MPI processes carry out the calculation and the f
 \end{center}
 \end{figure}
 
-\pagebreak 
+\subsubsection{MAP}
+
+MAP provides more comprehensive information than Performance Reports and if the application is compiled with a \verb+-g+ flag then function-level information can be obtained (although this is not required for MAP to work). When profiling an application with MAP modify the job script to load the Forge module (as for performance reports) and modify the aprun command by prepending \verb+map --profile+ e.g. replace
+\begin{verbatim}
+aprun -n ${nprocs} ./mandelbrot
+\end{verbatim}
+with
+\begin{verbatim}
+map --profile aprun -n ${nprocs} ./mandelbrot
+\end{verbatim}
+When the application runs a file with a \verb+.map+ extension is generated which can be loaded into the map graphical interface:
+\begin{verbatim}
+> module load tools/arm-forge
+> map mandelbrot_4p_1n_1t_2021-08-05_17-23.map &
+\end{verbatim}
+
+Example output from two of the tests (tests 1 and 5) will to shown to demonstrate the MAP tool. Output from profiling test 1 with MAP is shown in figure~\ref{fig:MAP_test1}.
+%
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/MAP_test1}
+\caption{Results from profiling test 1 using MAP. The ``Main thread activity'' panel shows the load imbalance and
+we can see the specific line which calls the \texttt{MPI\_Reduce} as the executable has been compiled with a \texttt{-g} flag.}
+\label{fig:MAP_test1}
+\end{center}
+\end{figure}
+This view was set up by selecting \texttt{Metrics} $\rightarrow$ \texttt{Preset: MPI} to load the preset view of MPI events. The point-to-point metrics were then switched off (under the \texttt{Metrics} menu) as there are no point-to-point calls in this particular example. The ``Main thread activity'' panel shows the load imbalance. The green bars show application activity and these complete at different times and the MPI call duration ramps up as processes reach the \verb+MPI_Reduce+ and are forced to wait\footnote{See \url{https://developer.arm.com/documentation/101136/2103/MAP/Metrics-view/MPI-calls} for more information on interpreting MAP MPI plots}. The executable has been compiled with a \texttt{-g} flag, which enables mapping back to line numbers on the source code, and in the middle panel we see the line number where the \verb+MPI_Reduce+ is called. 
+
+Output from profiling test 5 is shown in figure~\ref{fig:MAP_test5} (this time all the MPI metrics have been left switched on).
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/MAP_test5}
+\caption{Results from profiling test 5 using MAP. This is a manager-worker pattern which carries out a large number of point-to-point communications.}
+\label{fig:MAP_test5}
+\end{center}
+\end{figure}
+The MPI sent and MPI received time lines show the number of bytes per second passed to MPI send and receive functions respectively. These plots show higher levels of activity at the beginning and end of the calculation when the workers are completing work units more rapidly. At the end of the application we see some time spent in a collective which transfers no data and this is the \verb+MPI\_Barrier+ at the end of the program.
+
+\pagebreak
 
 %---------------------------------------------------------------------------------------------------------------------
 
 \subsection{Cray PAT}
 
-Although this is a Cray tool it does work with compilers other than Cray (the other PrgEnv modules load perftools-base). Experience building SWIFT showed that the \texttt{perftools-lite} module can confuse autogen and configure so only load the module prior to the make command. 
+Cray PAT (Performance Analysis Tools) is a suite of profiling tools which are available on Cray systems. Cray PAT has a large number of features\footnote{See \url{https://docs.nersc.gov/tools/performance/craypat/}} but also has a simplified mode called \verb+perftools-lite+. In section tests 1 and 5 will be run using \verb+perftools-lite+ to demonstrate this mode of operation. 
 
-\begin{itemize}
-\item Cray PAT has two modes: standard and ``lite''
-\item There is a graphical viewer (Apprentice 2) which reads the profiling output
-\item Can view a time line from a full trace
-\end{itemize}
-See also \url{https://docs.nersc.gov/tools/performance/craypat/}.
+To enable profiling with \verb+perftools-lite+ the \verb+perftools-lite+ module is loaded and the executable compiled using as usual. For example to build with the GCC compiler and profiling:
+\begin{verbatim}
+> module switch PrgEnv-cray PrgEnv-gnu 
+> module load perftools-lite
+> cc -o mandelbrot mandelbrot_mpi.c 
+WARNING: PerfTools is saving object files from a temporary directory into directory 
+'/home/username/.craypat/mandelbrot/178976'
+INFO: creating the PerfTools-instrumented executable 'mandelbrot' (lite-samples) ...OK
+\end{verbatim}
+When the \verb+cc+ wrapper script is run it reports that that PerfTools is instrumenting the executable as expected.
+The job can then be submitted to the queue using an unmodified job script (the \texttt{perftool-base} module is loaded as part of the programming environment and does not need to be explicitly loaded in the job script). When the job runs profiling information is written into a new directory (e.g. \verb+mandelbrot+10863-42s+) with a summary written to the stdout file (see Appendix A for example output). There is a graphical interface called ``Apprentice 2'' which can be used to view the output in the profiling directory e.g. 
+\begin{verbatim}
+> app2 mandelbrot+10863-42s &
+\end{verbatim}
 
-It's not clear how to use Cray PAT with python/Firedrake. Loading the perftools-lite module and using the python from the cray-python module does not produce any profiling output.
+Figure~\ref{fig:app2_summary} shows the Apprentice 2 overview window from \texttt{pertools-lite} profiling of test 1. 
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/app2_summary}
+\caption{Apprentice 2 overview window from \texttt{pertools-lite} profiling of test 1. A large fraction of time is spent in the Programming Model which indicates a performance problem.}
+\label{fig:app2_summary}
+\end{center}
+\end{figure}
+There is a clear indication of a performance problem shown by a large fraction of time is spent in the Programming Model which in this case is MPI. Looking at the sample profile pie chart (figure~\ref{fig:app2_pie} we see that around 55\% of the samples were in \texttt{MPI\_Reduce}.
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/app2_pie}
+\caption{Apprentice 2 sample profile window from \texttt{pertools-lite} profiling of test 1. In this window we can see that the time spent in the profiling model is due to an \texttt{MPI\_Reduce}.}
+\label{fig:app2_pie}
+\end{center}
+\end{figure}
+The activity window (see figure~\ref{fig:app2_activity}) shows a histogram of activity for each MPI process and we see significant variation in the time spent in collectives which is indicative of the load imbalance in this program.
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/app2_activity}
+\caption{Apprentice 2 activity window from \texttt{pertools-lite} profiling of test 1. In this window we see significant variation in the time spent in collectives which is indicative of a load imbalance.}
+\label{fig:app2_activity}
+\end{center}
+\end{figure}
+If a full trace is requested then the activity window can switch to a timeline view but this is not available with \texttt{perftools-lite}.
 
+The full version of the profiler has many more capabilities than \texttt{perftools-lite} including viewing a time line and measuring load imbalance. To use the full capabilities of the profiler the executable is build using the \verb+pat_build+ command, the executable is run, and the profiling information generated is processed using the \verb+pat_report+ command. One feature of particular interest to the project is the ability to re-order MPI ranks to minimise network traffic by placing frequently communicating processes on the same node which could be of particular relevance when combining spatial and temporal decompositions. 
+
+\pagebreak
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -341,6 +417,7 @@ Platform       &  Build                   & Status         &  Profiler \\
 \hline
 Isca           &  GCC-OpenMPI-fblaslapack & \checkmark     &     -     \\
 Isca           &  GCC-OpenMPI-OpenBLAS    & \checkmark     &     -     \\
+Isca           &  Intel-IMPI-MKL          & X              &  ITAC  \\
 Isambard XCI   &  GCC-CrayMPI-fblaslapack & \checkmark     & \texttt{perf-report} \\
 Isambard XCI   &  GCC-CrayMPI-CrayLibsci  & \checkmark     & \texttt{perf-report} \\
 \hline
@@ -372,6 +449,8 @@ ARM Forge can be used to profile python applications. Make sure to add the \verb
 
 \textbf{Test with a Firedrake example e.g. high resolution DG advection. This will show point-to-point communication pattern from domain decomposition.}
 
+It's not clear how to use Cray PAT with python/Firedrake. Loading the perftools-lite module and using the python from the cray-python module does not produce any profiling output.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Conclusions and recommendations}
@@ -379,20 +458,24 @@ ARM Forge can be used to profile python applications. Make sure to add the \verb
 
 Carry out initial performance studies using Firedrake for rapid prototyping. Use ARM Forge to profile Firedrake on Isambard which enables profiling up to the 20\,992 cores. Once the scalability of the algorithm has been established on Isambard implement the algorithm in FRric and run on Archer-2 with profiling using Cray PAT. This will enable performance studies beyond 20\,000 cores.
 
+In all cases some interpretation is needed to understand the cause of the performance problem. 
+
 \noindent
 \textbf{To do:}
 
 \begin{enumerate}
-\item Add examples using ARM MAP
-\item Builds on Isca: GCC reference, platform optimised Intel toolchain. Describe how to use Easybuild to set up the Intel build if this works.
+\item Builds on Isca
 \item Firedrake examples: Performance Reports/MAP, old ITAC results?
-\item Describe other capabilities of Cray PAT in addition to perftools-lite including rank re-ordering
-\item Add examples using Cray PAT perftools-lite
 \item Write conclusions and recommendations section and describe the next steps with reference to the proposal document
 \end{enumerate}
 
 \pagebreak
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section*{Appendix A}
+\label{appendixA}
+\input{MB_test1.stdout}
+
 
 \end{document}
