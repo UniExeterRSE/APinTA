@@ -22,22 +22,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section*{To do}
-
-\begin{enumerate}
-\item Write up ITAC examples
-\item Add examples using ARM MAP
-\item Builds on Isca: GCC reference, platform optimised Intel toolchain. Describe how to use Easybuild to set up the Intel build if this works.
-\item Firedrake example with Performance Reports and MAP
-\item Add examples using Cray PAT perftools-lite
-\item Describe other capabilities of Cray PAT in addition to perftools-lite including rank re-ordering
-\item Write conclusions and recommendations section: include the next steps
-\end{enumerate}
-
-\pagebreak
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \section{Introduction}
 
 In order to understand the performance characteristics of numerical schemes and the impact of potential optimisations it is necessary to gather information beyond simple measures of elapsed run times. A number of profiling tools exist which are capable of gathering performance information from applications parallelised using MPI, for example the time spent in MPI calls and the identification of performance problems such as load imbalance. This document gives an overview of the profiling tools available to the APinTA-PDEs project with a focus on tools which can provide information about MPI communication and related performance issues. 
@@ -69,7 +53,7 @@ Server         & AMD x86\_64         & 128        & 256 GB DRAM  & None         
 \caption{Target platform hardware specifications.}
 \label{tab:hardware}
 \end{table}%
-The target HPC platforms are Archer-2 (national tier-1), Isambard (national tier-2) and Isca (local tier-3). Isambard comprises multiple systems and for this project we will focus on the the XCI system which is an established production system based on the ARM64 processor architecture. The project has purchased a local server which is designed to be similar to an Archer compute node, although it will run Ubuntu which will make it easier to build Firedrake. The server can provide a reference installation as it will use an unmodified Firedrake installation, rather than the more customised installations on the HPC platforms which will use non-standard components, for example MPI libraries and maths libraries.
+The target HPC platforms are Archer-2 (national tier-1), Isambard (national tier-2) and Isca (local tier-3). Isambard comprises multiple systems and for this project we will focus on the the XCI system which is an established production system based on the ARM64 processor architecture. The project has purchased a local server which is designed to be similar to an Archer compute node, although it will run Ubuntu which will make it easier to build Firedrake. The server can provide a reference installation as it will use an unmodified Firedrake installation, rather than the more customised installations on the HPC platforms which will use non-standard software components, for example MPI libraries and maths libraries.
 
 An overview of the software stacks on the target platforms is shown in Table~\ref{tab:software}. 
 \begin{table}[htp]
@@ -92,11 +76,11 @@ The Cray profiler is Cray Performance Analysis Tools (PAT), the ARM profilers ar
 \end{table}
 Each HPC platform has the GNU compilers, compilers from the processor vendor (AMD, Intel, or ARM) and Cray systems also have the Cray compiler. The GNU compilers are the one compiler family which is available on all the target platforms.
 
-On the Cray systems compilation is handled by wrapper scripts from the Cray Programming Environment. The wrapper script can run different compilers depending on which programming environment module is loaded at compile time (e.g. if \texttt{PrgEnv-cray} is loaded then \texttt{cc} calls the Cray C compiler and if \texttt{PrgEnv-gnu} is loaded \texttt{cc} calls the GNU C compiler). The MPI library and maths library (Cray libsci) are then linked by the wrapper script. On Cray systems the standard profiling tool is Cray Performance Analysis Tools (PAT) but on Isambard the profiling tools from the ARM Forge suite\footnote{ARM Forge was previously known as Allinea Forge} are also available.
+On the Cray systems compilation is handled by wrapper scripts from the Cray Programming Environment. The wrapper script can run different compilers depending on which programming environment module is loaded at compile time (e.g. if \texttt{PrgEnv-cray} is loaded then \texttt{cc} calls the Cray C compiler and if \texttt{PrgEnv-gnu} is loaded \texttt{cc} calls the GNU C compiler). The MPI library and maths library (Cray libsci) are then linked by the wrapper script. On Cray systems the standard profiling tool is Cray Performance Analysis Tools (PAT) with the profiling tools from the ARM Forge suite\footnote{ARM Forge was previously known as Allinea Forge} also available on Isambard.
 
-The software environment on Isca is managed using Easybuild which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which works with Intel MPI.
+The software environment on Isca is managed using Easybuild\footnote{https://docs.easybuild.io/en/latest/} which has the concept of a toolchain. There are two toolchains on Isca: the GCC-foss toolchain and the Intel toolchain. Each toolchain has a different MPI library and maths library. Intel Parallel Studio has an MPI profiling tool called Intel Trace Analyzer and Collector (ITAC) which works with Intel MPI.
 
-The server does not currently have any profiling software. However the profiling tools from Intel's Parallel Studio product are now available for free as part of the HPC toolkit from the newer OneAPI product\footnote{\url{https://software.intel.com/content/www/us/en/develop/tools/oneapi/all-toolkits.html}} and these could be installed on the server. There is also the option of obtaining an evaluation licence for ARM Forge to test these tools on the server. A server licence for the ARM Forge product costs \$USD~425 for a one year academic licence which allows profiling with up to 64 MPI processes\footnote{\url{https://store.developer.arm.com/store/high-performance-computing-hpc-tools/arm-forge}}.
+The server does not currently have any profiling software. However the profiling tools from Intel's Parallel Studio product are now available for free as part of the HPC toolkit as part of the newer OneAPI product\footnote{\url{https://software.intel.com/content/www/us/en/develop/tools/oneapi/all-toolkits.html}} and these could be installed on the server. There is also the option of obtaining an evaluation licence for ARM Forge to test these tools on the server. A server licence for the ARM Forge product costs \$USD~425 for a one year academic licence which allows profiling with up to 64 MPI processes\footnote{\url{https://store.developer.arm.com/store/high-performance-computing-hpc-tools/arm-forge}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -105,9 +89,9 @@ The server does not currently have any profiling software. However the profiling
 
 The profilers will be tested using three different versions of a Mandelbrot set calculation. The different versions parallelise the calculation in different ways, have different performance characteristics and display different performance issues:
 \begin{itemize}
-\item Version 1: divides the computational domain into equal sized chunks along the real axis. Dividing the workload in this manner causes a load imbalance as some sub-domains will complete significantly more iterations than other (see figure~\ref{fig:mandelbrot_dd})
+\item Version 1: divides the computational domain into equal sized chunks along the real axis. Dividing the workload in this manner causes a load imbalance as some sub-domains will complete significantly more iterations than others (see figure~\ref{fig:mandelbrot_dd})
 \item Version 2: similar to version 1 but interleaves the iterations on the real axis to improve the load balance. Both version 2 and version 1 pack a 2D array into a 1D buffer which is communicated using an \verb+MPI_Reduce+. Even when the program is run on a single compute node (where MPI communication is quick) there will be an overhead from packing and unpacking the buffer.
-\item Version 3: implements a manager-worker pattern for distributing the iterations to ensure good load balancing. This version also replaces the \verb+MPI_Reduce+ with point-to-point communication between the manager-process and the worker processes. One process (the manager process) does not perform any calculations which adversely affects performance with small numbers of MPI processes. However this version scales better to larger numbers of MPI processes than the other versions and avoids calling \verb+MPI_Reduce+.
+\item Version 3: implements a manager-worker pattern for distributing the iterations to ensure good load balancing. This version also replaces the \verb+MPI_Reduce+ with point-to-point communication between the manager process and the worker processes. The manager process does not perform any calculations which adversely affects performance with small numbers of MPI processes. However this version avoids calling \verb+MPI_Reduce+ and scales better to larger numbers of MPI processes than the other versions .
 \end{itemize}
 \begin{figure}[htbp]
 \begin{center}
@@ -127,16 +111,16 @@ The following tests will be used to demonstrate the profiling tools:
 \end{itemize}
 Comparing test 1 and test 2 shows the impact of I/O. The I/O comprises process 0 writing values to an ASCII file which adds a significant overhead which will show up in the profiling output. Comparing tests 1 and test 3 and shows the impact of load imbalance, as the only difference between these tests is the distribution of the workload. 
 Tests 4 and 5 have been designed to illustrate a different communication pattern (manager-worker) and a different type of MPI call (point-to-point rather than collectives). 
-The manager-worker pattern is relatively inefficient with 4 MPI processes (as one process is the manager which does not participate in the calculation) but shows good efficiency with 16 MPI processes. 
+The manager-worker pattern is relatively inefficient with 4 MPI processes (test 4) as one process is the manager which does not participate in the calculation but shows much better efficiency with 16 MPI processes (test 5). 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Profiling tools}
 \label{section:profiling_tools}
 
-Some performance information can be obtained from within Firedrake itself. Performance information can be obtained from PETSc (by adding the \verb+-log_view+ flag when running Firedrake\footnote{\url{https://petsc.org/release/documentation/manual/profiling/}}) and there is also the ability to time sections of code by adding a PyOP2 timed stage\footnote{\url{https://op2.github.io/PyOP2/profiling.html}}. These options will be available on all platforms when Firedrake is the target application but the rest of this report will look at how external profilers can be used to obtain extra information. 
+Some performance information can be obtained by using functionality already available in Firedrake. Performance information can be obtained from PETSc (by adding the \verb+-log_view+ flag when running Firedrake\footnote{\url{https://petsc.org/release/documentation/manual/profiling/}}) and there is also the ability to time sections of code by adding a PyOP2 timed stage\footnote{\url{https://op2.github.io/PyOP2/profiling.html}}. These options will be available on all platforms when Firedrake is the target application but the rest of this report will look at how the external profilers already installed on the target platforms can be used to obtain extra information. 
 
-There are external profilers already installed on the target platforms with different platforms having different profiling tool available:
+There are three different profilers installed on the target platforms with different platforms having different profiling tools available:
 %
 \begin{itemize}
 \item Intel Parallel Studio: Isca only (requires Intel MPI)
@@ -150,9 +134,9 @@ Each of these products is a suite of tools with a range of capabilities. This re
 
 \subsection{Intel Parallel Studio}
 
-The MPI profiler in Intel Parallel Studio is called Intel Trace Analyzer and Collector (ITAC). Other profiling tools are available, which provide information node-level performance, but the focus of this report is on MPI performance.
+The MPI profiler in Intel Parallel Studio is called Intel Trace Analyzer and Collector (ITAC). Other profiling tools are available, which provide information on node-level performance for example, but the focus of this report is on MPI performance so ITAC is the tool under consideration.
 
-In the following examples the Mandelbrot executable will be build with MPI tracing enabled as follows. Firstly load the modules for the Intel compilers and the ITAC tool. 
+In the following examples the Mandelbrot executable will be build with MPI tracing enabled as follows. Firstly load the modules for the Intel compilers and ITAC: 
 \begin{verbatim}
 > module load intel/2017b
 > module load itac/2017.1.024
@@ -162,7 +146,7 @@ Then compile the executable with \texttt{-trace} flag:
 > mpicc -trace -o mandelbrot mandelbrot_mpi.c
 \end{verbatim}
 The \texttt{itac} module needs to be loaded in the job script (in addition to the \texttt{intel} module) but no other modifications are required to the job script. When the job runs a number of additional files are generated, including a file with a \texttt{.stf} extension which is the trace file.
-The profiling output can be viewed opening the trace file with the Trace Analyzer GUI:
+The profiling output can be viewed opening the trace file with the Trace Analyzer graphical interface:
 \begin{verbatim}
 > traceanalyzer.bin mandelbrot_mpi.stf &
 \end{verbatim}
@@ -185,7 +169,7 @@ This test has a load imbalance which is seen as a large fraction (56\%) of time 
 \item In the lower left pane select the \texttt{Load Balance} tab and click the \texttt{Show pies} button. 
 \item Right click on a red MPI section in the timeline and choose \texttt{Ungroup MPI} from the drop down menu
 \end{itemize}
-The timeline shows that process 2 is taking much longer to complete its than the other processes which has resulted in processes 0, 1 and 3 waiting at the \verb+MPI_Reduce+ call. \\
+The timeline shows that process 2 is taking much longer to complete its iterations than the other processes which has resulted in processes 0, 1 and 3 waiting at the \verb+MPI_Reduce+ call. \\
 
 \noindent
 \textbf{Test 2:} this test is similar to test 1 but has I/O enabled. The summary page (see figure~\ref{fig:test2_ITAC_summary}) shows a significantly longer runtime (450s vs. 250s) and significant time spent in \verb+MPI_Barrier+. 
@@ -197,7 +181,7 @@ The timeline shows that process 2 is taking much longer to complete its than the
 \label{fig:test2_ITAC_summary}
 \end{center}
 \end{figure}
-The I/O is carried by process 0 which causes all the other processes to wait at an \verb+MPI_barrier+ at the end of the program (processes are synchronised at a barrier before a final run time is reported by process 0). The effect of switching on I/O has been to introduce another load imbalance, this time with process 0 working and all other processes waiting. This can be seen clearly in the timeline where there are two distinct phases both of which have a load imbalance, but is less clear from the summary or pie charts alone. \\
+The I/O is carried by process 0 which causes all the other processes to wait at an \verb+MPI_barrier+ at the end of the program (processes are synchronised at a barrier before a final run time is reported by process 0). The effect of switching on I/O has been to introduce another load imbalance, this time with process 0 working and all other processes waiting. This can be seen clearly in the timeline where there are two distinct phases both of which have a load imbalance. \\
 
 \noindent
 \textbf{Test 3:} this test uses version 2 of the program which has corrected the load imbalance and the profiling results are shown in figure~\ref{fig:test3_ITAC_summary}.
@@ -205,33 +189,35 @@ The I/O is carried by process 0 which causes all the other processes to wait at 
 \begin{center}
 \includegraphics[scale=0.3]{figures/test3_summary}
 \includegraphics[scale=0.3]{figures/test3_eventTimeline}
-\caption{Intel Trace Analyzer plots for test 3. This test uses version 2 of the program which has corrected the load imbalance presence in version 1 resulting in all MPI processes reaching the \texttt{MPI\_Reduce} together.}
+\caption{Intel Trace Analyzer plots for test 3. This test uses version 2 of the program which has corrected the load imbalance present in version 1 resulting in all MPI processes reaching the \texttt{MPI\_Reduce} together.}
 \label{fig:test3_ITAC_summary}
 \end{center}
 \end{figure}
 The run time is now significantly reduced (108 seconds vs. 250 seconds) and the time line shows the MPI processes reaching the \verb+MPI_Reduce+ together. At the end of the time line we can see some time spent carrying out the \verb+MPI_Reduce+ and some application time (blue) as the buffer is unpacked (if required the time line can be zoomed-in to show more detail in a selected region). \\
 
 \noindent
-\textbf{Test 4:}  \texttt{Charts} $\rightarrow$ \texttt{message profile}
+\textbf{Test 4:} this test uses version 3 of the Mandelbrot program which parallelises the workload using a manager-worker pattern to ensures good load balancing by distributing work at run-time.
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.3]{figures/test4_summary}
 \includegraphics[scale=0.3]{figures/test4_eventTimeline}
-\caption{Intel Trace Analyzer plots for test 4.}
+\caption{Intel Trace Analyzer plots for test 4. This test uses version 3 of the Mandelbrot program which parallelises the workload using a manager-worker pattern. In this example the communication takes place with a larger number of point-to-point operations instead of a single collective operation.}
 \label{fig:test4_ITAC_summary}
 \end{center}
 \end{figure}
+The summary page shows a large fraction of time spent in v\verb+MPI_Recv+ (24.8\%) due to the manager process waiting to hand out work to worker processes. In this test there are only 4~MPI processes so this constitutes a large fraction of the total run time. The time line shows the worker processes (processes 1--3) completing together with negligible time spent in the final \verb+MPI_Barrier+. The communication in this version of the program takes place with a large number of point-to-point operations instead of a single collective operation and the time line shows black lines connecting processes when they communicate. The lower right panel of the bottom figure is a message profile which shows which processes communicate using point-to-point operations (To view the message profile select: \texttt{Charts} $\rightarrow$ \texttt{message profile}). In the manager-worker pattern all the workers communicate only with the manger process so the communcation is seen in the first row and first column of the message profile diagram. \\
 
 \noindent
-\textbf{Test 5:}  
+\textbf{Test 5:} this test uses version 3 of the Mandelbrot program (manager-worker) as for the previous test but uses 16~MPI processes instead of 4~MPI processes. The time spent in \verb+MPI_Reduce+ is now much smaller (6.24\%) consistent with slightly less than $1/16$ of the run time (i.e. one manager process out of a total of 16~processes). 
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.3]{figures/test5_summary}
 \includegraphics[scale=0.3]{figures/test5_eventTimeline}
-\caption{Intel Trace Analyzer plots for test 5.}
+\caption{Intel Trace Analyzer plots for test 5. This test uses version 3 of the Mandelbrot program (manager-worker) as for the previous test but uses 16~MPI processes instead of 4~MPI processes.}
 \label{fig:test5_ITAC_summary}
 \end{center}
 \end{figure}
+The point-to-point communication between processes is seen to be most intense at the start of the calculation, when each unit of work is completed quickly, with less communication in the middle of the time line when each point takes longer to calculate. 
 
 \pagebreak
 %---------------------------------------------------------------------------------------------------------------------
@@ -239,12 +225,9 @@ The run time is now significantly reduced (108 seconds vs. 250 seconds) and the 
 \subsection{ARM Forge}
 
 The ARM Forge suite of development tools is available on the Isambard system. ARM Forge includes two performance tools: ``Performance Reports'' and ``MAP''. 
-ARM MAP is a profiler which is part of the ARM Forge suite and it can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}.
+ARM MAP is a profiler which is part of the ARM Forge suite and it can profile C++, C, Fortran and Python\footnote{\url{https://www.arm.com/products/development-tools/server-and-hpc/forge/map}}. The documentation for Performance Reports says that on Cray systems dynamic linking or explicit linking with the profiling libraries is required\footnote{\url{https://developer.arm.com/documentation/101136/2102/Performance-Reports/Get-started-with-Performance-Reports/Compile-on-Cray-X-series-systems}}. However in the latest Cray compilers dynamic linking is the default so no changes are required to the build process. The following shows an example session and output from Performance Reports on the Isambard XCI system.
 
-
-The documentation for Performance Reports says that on Cray systems dynamic linking or explicit linking with the profiling libraries is required\footnote{\url{https://developer.arm.com/documentation/101136/2102/Performance-Reports/Get-started-with-Performance-Reports/Compile-on-Cray-X-series-systems}}. However in the latest Cray compilers dynamic linking is the default so no changes are required to the build process. The following shows an example session and output from Performance Reports on the Isambard XCI system.
-
-No changes are required at compile time so simply compile the executable as normal. For this example the GCC compiler will be used:
+No changes are required at compile time so simply compile the executable as normal, for example using the GCC compiler:
 \begin{verbatim}
 > module switch PrgEnv-cray PrgEnv-gnu
 > cc -o mandelbrot mandelbrot_mpi.c
@@ -253,61 +236,77 @@ Two changes are required in the job script in order to activate performance repo
 \begin{verbatim}
 module load tools/arm-forge
 \end{verbatim}
-and the second change is to add the \texttt{perf-report} command before the \texttt{aprun} command:
+and the second change is to add the \texttt{perf-report} command before the \texttt{aprun} command e.g. replace
+\begin{verbatim}
+aprun -n ${nprocs} ./mandelbrot
+\end{verbatim}
+with
 \begin{verbatim}
 perf-report aprun -n ${nprocs} ./mandelbrot
 \end{verbatim}
-This method of launching a job under perf-report is referred to as Express Launch mode.
+This method of launching a job under perf-report is referred to as Express Launch mode in the documentation.
 %
-When the job runs two extra files are generated which contain the output from the performance report in text and HTML formats. The output from running a performance report on the Mandelbrot version 1 example using 4 MPI processes is shown in figure~\ref{fig:perf-report_MB1}.  
+When the job runs two extra files are generated which contain the output from the performance report in text and HTML formats. \\
+
+\noindent
+\textbf{Test 1:} the output from running a performance report on test 1 is shown in figure~\ref{fig:perf-report_MB1}.
 %
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.35]{figures/mandelbrot_v1_PerformanceReport}
-\caption{ARM Performance Report from the Mandelbrot version 1 example. The tool correctly identifies that there is excessive time spent in MPI calls but does not identify load imbalance as the performance issue.}
+\caption{ARM Performance Report from test 1. The tool correctly identifies that there is excessive time spent in MPI calls but does not identify load imbalance as the performance issue.}
 \label{fig:perf-report_MB1}
 \end{center}
 \end{figure}
-In this example the I/O has been switched off to highlight the performance issue caused by the load imbalance. The tool correctly identifies that there is excessive time spent in MPI calls but does not identify load imbalance as the performance issue. 
+Performance Reports correctly identifies that the application is MPI bound but without the time line it is not clear that load imbalance is responsible.
+A similar fraction of time is spent in MPI calls to that shown in the ITAC example (the corresponding ITAC output is shown in figure~\ref{fig:test1_ITAC_summary}). Performance Reports also includes summaries of other statistics, for example CPU, I/O and memory metrics. \\
 
-For the next test the I/O was switched on and the results are shown in figure~\ref{fig:perf-report_MB1_IO}.
+\noindent
+\textbf{Test 2:} results from this test are shown in figure~\ref{fig:perf-report_MB1_IO}.
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.35]{figures/mandelbrot_v1_IO_PerformanceReport}
-\caption{ARM Performance Report from the Mandelbrot version 1 example with I/O switched on. The additional time spent in I/O shows up as an exacerbated load imbalance due to I/O being funnelled through the rank zero process.}
+\caption{ARM Performance Report from test 2 which is like test 1 but with I/O enabled. The additional time spent in I/O causes an exacerbated load imbalance due to I/O being funnelled through the rank zero process which has increased the fraction of time spent in MPI calls. }
 \label{fig:perf-report_MB1_IO}
 \end{center}
 \end{figure}
-The additional time spent in I/O shows up as an exacerbated load imbalance due to I/O being funnelled through the rank zero process which causes all other processes to wait at an MPI barrier. Although slow I/O is the underlying cause the time spent in I/O is only a small fraction of the time breakdown.
+This test is like test 1 but with I/O enabled and time spent in I/O is now seen in the Performance Report. However the main performance issue caused by the I/O is actually 
+an exacerbated load imbalance due to I/O being funnelled through the rank zero process causing all other processes to wait at an MPI barrier. Although slow I/O is the underlying cause the time spent in I/O is only a small fraction of the time breakdown and the main impact is additional time spend in MPI collectives. \\
 
-
+\noindent
+\textbf{Test 3:} results from this test are shown in ~\ref{fig:perf-report_test3}
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.35]{figures/mandelbrot_v2_PerformanceReport}
-\caption{ARM Performance Report from the Mandelbrot version 2 example. This version has fixed the load imbalance by interleaving iterations on the real axis.}
-\label{fig:perf-report_MB2}
+\caption{ARM Performance Report from test 3. This version has fixed the load imbalance by interleaving iterations on the real axis.}
+\label{fig:perf-report_test3}
 \end{center}
 \end{figure}
+The fraction of time spent in MPI is now low (around 2\%) as the load imbalance has been corrected. The Performance Report now directs the reader to the CPU metrics section 
+as the calculation is considered compute bound. \\
 
-Figure~\ref{fig:perf-report_MB3} shows the Performance Report from the Mandelbrot version 3 example with 4 MPI processes. This version of the program uses a manager-worker pattern which means that only 3 out of 4 MPI processes carry out the calculation and the fourth process is the manager which does not compute any points. The MPI time of 25\% is consistent with the manager process waiting for results from the worker processes. 
+\noindent
+\textbf{Test 4:} Figure~\ref{fig:perf-report_MB3} shows the Performance Report from test 4 (manager-worker with 4 MPI processes).
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.35]{figures/mandelbrot_v3_PerformanceReport}
-\caption{ARM Performance Report from the Mandelbrot version 3 example with 4 MPI processes. In the manager-worker pattern only 3 out of 4 MPI processes carry out the calculation and the fourth process is the manager which does not compute any points.}
+\caption{ARM Performance Report from test 4. In the manager-worker pattern only 3 out of 4 MPI processes carry out the calculation and the fourth process is the manager which does not compute any points.}
 \label{fig:perf-report_MB3}
 \end{center}
 \end{figure}
-If the number of MPI processes is increases to 16 (see figure~\ref{fig:perf-report_MB3_16procs}) then the fraction of MPI time decreases as there are now 15 processes actively working on the calculation.
+With this test only 3 out of 4 MPI processes carry out the calculation and the fourth process is the manager which does not compute any points. The MPI time of 25\% is consistent with the manager process waiting for results from the worker processes. In the MPI section of the Performance Report we see that almost all time is spent in point-to-point calls instead of collectives, as expected. We also see a reduction in the peak memory usage as there is no need to populate a large buffer for carrying out communication. \\
+
+\noindent
+\textbf{Test 5:} in this test the number of MPI processes is increased to 16 (see figure~\ref{fig:perf-report_MB3_16procs}) and the fraction of MPI time decreases as there are now 15 out of 16 processes actively working on the calculation instead of 3 out of 4.
 \begin{figure}[htbp]
 \begin{center}
 \includegraphics[scale=0.35]{figures/mandelbrot_v3_16procs_PerformanceReport}
-\caption{ARM Performance Report from the Mandelbrot version 3 example with 16 MPI processes. The MPI fraction is now reduced as the manager process is only one out of 16 processes.}
+\caption{ARM Performance Report from test 5. This test uses the manager-worker version of the program (like test 4) but with 16 processes instead of 4. The MPI fraction is now reduced as the manager process is only one out of sixteen processes instead of one out of three.}
 \label{fig:perf-report_MB3_16procs}
 \end{center}
 \end{figure}
 
-The Performance Report tool has provided a clear overview of the application performance, which highlighted the presence of performance issues, without needing to change the build process. However was not able to distinguish between load imbalance and overhead which would be clearer when viewing a time line.
-
+\pagebreak 
 
 %---------------------------------------------------------------------------------------------------------------------
 
@@ -330,7 +329,7 @@ It's not clear how to use Cray PAT with python/Firedrake. Loading the perftools-
 \section{Builds}
 \label{section:builds}
 
-There are three primary HPC platforms for the project: Isca (Exeter university Cluster), Isambard (GW4 tier-2), Archer-2 (national facility). Work on the ARCHER-2 build of Firedrake is supported by an Archer-2 eCSE project (ARCHER2-eCSE04-5 PI: Dr David A Ham (Imperial College) ``Scalable and robust Firedrake deployment on ARCHER2 and beyond'') and will not be considered further here to avoid duplication of effort.
+There are three primary HPC platforms for the project: Isca, Isambard, Archer-2. Work on the ARCHER-2 build of Firedrake is supported by an Archer-2 eCSE project (ARCHER2-eCSE04-5 PI: Dr David A Ham (Imperial College) ``Scalable and robust Firedrake deployment on ARCHER2 and beyond'') and will not be considered further here to avoid duplication of effort.
 
 For each target platform there is a build using the reference BLAS/Lapack implementation (fblaslapack) and optimised builds which use optimised maths libraries appropriate for the platform. The status of the builds is shown in table~\ref{table:build_status}
 %
@@ -357,7 +356,7 @@ Isambard XCI   &  GCC-CrayMPI-CrayLibsci  & \checkmark     & \texttt{perf-report
 
 \item Vendor supplied maths libraries often have support for multi-threading which needs to be switched off when using Firedrake. Newer Firedrake versions warn about this.
 
-\item Building Firedrake on Isca with the Intel compilers is not working because pybind11 requires Intel C++ compiler v18 or newer. Try pip installing pybind11 before running the Firedrake install script.
+\item Building Firedrake on Isca with the Intel compilers is not working because pybind11 requires Intel C++ compiler v18 or newer. 
 
 \item The Isca build scripts are named \verb+install_firedrake_isca_COMPILER_MPI_MATHLIB.sh+
 \end{itemize}
@@ -380,7 +379,19 @@ ARM Forge can be used to profile python applications. Make sure to add the \verb
 
 Carry out initial performance studies using Firedrake for rapid prototyping. Use ARM Forge to profile Firedrake on Isambard which enables profiling up to the 20\,992 cores. Once the scalability of the algorithm has been established on Isambard implement the algorithm in FRric and run on Archer-2 with profiling using Cray PAT. This will enable performance studies beyond 20\,000 cores.
 
-\textbf{Describe the next steps with reference to the proposal document.}
+\noindent
+\textbf{To do:}
+
+\begin{enumerate}
+\item Add examples using ARM MAP
+\item Builds on Isca: GCC reference, platform optimised Intel toolchain. Describe how to use Easybuild to set up the Intel build if this works.
+\item Firedrake examples: Performance Reports/MAP, old ITAC results?
+\item Describe other capabilities of Cray PAT in addition to perftools-lite including rank re-ordering
+\item Add examples using Cray PAT perftools-lite
+\item Write conclusions and recommendations section and describe the next steps with reference to the proposal document
+\end{enumerate}
+
+\pagebreak
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
