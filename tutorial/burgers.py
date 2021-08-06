@@ -22,15 +22,15 @@ def integ_burgers(dt, dx, n, u0, nu=0.02, burgers_func: Callable = burgers_scipy
     return output
 
 def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu, burgers_func=burgers_scipy):
-    t_vals = np.linspace(*t_range, num_t, False)
+    t_vals = np.linspace(*t_range, num_t+1)
     num_x = len(x_vals)
-    u_vals = np.zeros((num_t, num_x))
+    u_vals = np.zeros((num_t+1, num_x))
     dt = (t_range[1] - t_range[0])/num_t
     dx = x_vals[1] - x_vals[0]
     
     u_vals[0, :] = x0
     
-    for i in range(1, num_t):
+    for i in range(1, num_t+1):
         u_vals[i, :] = burgers_func(u_vals[i-1, :], dt, dx, nu, x_vals, t_vals[i])
         
     return t_vals, u_vals
@@ -153,16 +153,16 @@ def main():
     t_stepsG = 10
     t_stepsF = 10
     t_vals, u_vals = solve_burgers((0,t_max), x_vals, t_stepsF*t_stepsG, x_initial, NU)
-    # plot_burgers(t_vals, x_vals, u_vals)
+    plot_burgers(t_vals, x_vals, u_vals)
     
     para_iterations = 10
     t_coarse, u_coarse, t_fine, u_fine = pr.parareal(0, t_max, t_stepsG, t_stepsF, para_iterations, x_initial,
                                                      integ_burgers, integ_burgers, integ_args=(dx,), nu=NU, full_output=True)
     
-    plot_burgers(t_coarse, x_vals, u_coarse[:, 0, :], f'Coarse Burgers : Iteration 0', 'coarse_iteration0')
+    plot_burgers(t_coarse, x_vals, u_coarse[:, 0, :], f'Coarse Burgers : Iteration 0', 'coarse_iteration0', [-1, 1])
     for k in range(1, para_iterations):
-        plot_burgers_fine(t_fine, x_vals, u_fine[:, k, :, :].swapaxes(0,1), f'Fine Burgers : Iteration {k}', f'fine_iteration{k}')
-        plot_burgers(t_coarse, x_vals, u_coarse[:, k, :], f'Coarse Burgers : Iteration {k}', f'coarse_iteration{k}')
+        plot_burgers_fine(t_fine, x_vals, u_fine[:, k, :, :].swapaxes(0,1), f'Fine Burgers : Iteration {k}', f'fine_iteration{k}', [-1, 1])
+        plot_burgers(t_coarse, x_vals, u_coarse[:, k, :], f'Coarse Burgers : Iteration {k}', f'coarse_iteration{k}', [-1, 1])
 
     # errors_tmax([4, 1, 0.25, 0.17, 0.1], x_vals, x_initial, t_stepsG, t_stepsF, para_iterations)
     # errors_discretisation([1, 2, 4, 8], [1, 4, 16, 64], dx, t_stepsF, x_range, initial_func, t_stepsG, 0.1, para_iterations)   

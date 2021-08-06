@@ -22,7 +22,7 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x_i
     iterations : int
         number of parallel iterations to be done
     x0 : Sequence[float]
-        Intial conditions
+        Initial conditions
     func : (*variables, **func_kwargs) -> variables_dot or None
         function to be integrated over. Returns the time derivate of each variable
     coarse_integ/fine_integ : (func, dt, *integ_args, n, x0, **integ_kwargs) -> np.array or
@@ -49,7 +49,7 @@ def parareal(a: float, b: float, n_gross: int, n_fine: int, iterations: int, x_i
     dt_gross = (b - a)/n_gross
     dt_fine = t_fine[0,1] - t_fine[0,0]
     
-    # Creates a function that does the fine integration requiring only the inital conditions
+    # Creates a function that does the fine integration requiring only the initial conditions
     # as a parameter
     if func is None:
         fine_int_func = partial(fine_integ, dt_fine, *integ_args, n_fine, **integ_kwargs)
@@ -103,7 +103,7 @@ def plot_comp(t_gross, x_gross, x_fine, var_names = None, title = None,
         var_names = []
         for x in range(num_vars):
             var_names[x] = f'Variable {x}'
-    # Include the inital conditions in the x_fine array
+    # Include the initial conditions in the x_fine array
     x_fine_adj = np.concatenate((x_fine[:, 0, 0, :].reshape(num_vars, 1, iterations), x_fine[:, :, -1, :]), axis=1)
             
     for i in range(iterations):
@@ -129,7 +129,7 @@ def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = N
     if var_names is None:
         var_names = []
         for x in range(num_vars):
-            var_names[x] = f'Variable {x}'
+            var_names.append(f'Variable {x}')
             
     for i in range(1, iterations):
         fig = plt.figure(figsize=(10,8))
@@ -147,14 +147,14 @@ def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = N
         plt.show()
         
 def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
-                  *plot_args, **plot_kwargs):
+                  save_name = None, *plot_args, **plot_kwargs):
     x_gross = x_gross.swapaxes(1,2).swapaxes(0,1)
     num_vars, num_t, iterations = x_gross.shape
     assert num_vars == 2
     if var_names is None:
         var_names = []
         for x in range(num_vars):
-            var_names[x] = f'Variable {x}'
+            var_names.append(f'Variable {x}')
             
     for i in range(iterations):
         fig = plt.figure(figsize=(10,8))
@@ -169,4 +169,36 @@ def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
         
         axs.set_xlabel(var_names[0])
         axs.set_ylabel(var_names[1])
+        if save_name:
+            plt.savefig(f'tutorial/figs/brusselator/{save_name}_{i}')
         plt.show()
+        
+def plot_2d_phase_grid(x_coarse, grid_shape, var_names = None, title = None,
+                       comparison = None, save_name = None, *plot_args, **plot_kwargs):
+    num_t, iterations, num_vars = x_coarse.shape
+    assert num_vars == 2
+    if grid_shape[0]*grid_shape[1] < iterations:
+        raise ValueError('Grid is not big enough for number of iterations')
+    if var_names is None:
+        var_names = []
+        for x in range(num_vars):
+            var_names.append(f'Variable {x}')
+            
+    fig = plt.figure()
+    if title:
+        fig.suptitle(title)
+    axs = fig.subplots(*grid_shape, sharex=True, sharey=True).flatten()
+            
+    for i in range(iterations):
+        if comparison is not None:
+            axs[i].plot(comparison[0], comparison[1], *plot_args, **plot_kwargs)
+        axs[i].plot(x_coarse[:, i, 0], x_coarse[:, i, 1], 'o', *plot_args, **plot_kwargs)
+        
+        axs[i].set_title(f'Iteration {i}')
+        axs[i].set_xlabel(var_names[0])
+        axs[i].set_ylabel(var_names[1])
+        
+    if save_name:
+        plt.savefig(f'tutorial/figs/brusselator/{save_name}')
+    plt.show()
+    

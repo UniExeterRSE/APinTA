@@ -1,4 +1,4 @@
-from typing import Callable, Sequence, List, Tuple
+from typing import Callable, Optional, Sequence, List, Tuple
 import numpy as np
 import scipy.integrate as integ
 import matplotlib.pyplot as plt
@@ -52,20 +52,51 @@ def draw_plots2d(x, y, t, title):
     
     plt.show()
     
+def error_calc(x_coarse, comparison, t_coarse, plot_grid, title = None,
+               save_name = None, *plot_args, **plot_kwargs):
+    num_t, iterations, num_vars = x_coarse.shape
+    assert num_vars == 2
+    if plot_grid[0]*plot_grid[1] < iterations:
+        raise ValueError('Grid is not big enough for number of iterations')
+    
+    errors = x_coarse - comparison[:, np.newaxis, :]
+    error_distances = np.sqrt(np.sum(errors**2, axis=2))
+            
+    fig = plt.figure()
+    if title:
+        fig.suptitle(title)
+    axs = fig.subplots(*plot_grid, sharex=True, sharey=True).flatten()
+            
+    for i in range(iterations):
+        axs[i].plot(t_coarse, error_distances[:, i], *plot_args, **plot_kwargs)
+        
+        axs[i].set_title(f'Iteration {i}')
+        axs[i].set_yscale('log')
+        axs[i].set_xlabel('t')
+        axs[i].set_ylabel('Error')
+        
+    if save_name:
+        plt.savefig(f'tutorial/figs/brusselator/{save_name}')
+    plt.show()
+    
 def main():
     time_steps_fine = 20
     time_steps_gross = 32
     time_range = [0, 12]
     initial_cond = (0,1)
     dt = time_range[1]/(time_steps_fine*time_steps_gross)
-    t = np.arange(time_range[0], time_range[1], dt)
-    x, y = RK4(brusselator, dt, time_steps_fine*time_steps_gross, initial_cond, A=A, B=B).T
+    t = np.linspace(time_range[0], time_range[1], time_steps_fine*time_steps_gross+1)
+    x, y = RK4(brusselator, dt, time_steps_fine*time_steps_gross+1, initial_cond, A=A, B=B).T
     
     draw_plots2d(x, y, t, 'Brusselator')
     
     t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(time_range[0], time_range[1], time_steps_gross, time_steps_fine, 6, initial_cond, RK4, RK4, brusselator, full_output=True, A=A, B=B)
     pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y'], 'Brusselator')
-    pr.plot_2d_phase(x_gross_corr, ['x', 'y'], 'Brusselator', (x, y))
+    # pr.plot_2d_phase(x_gross_corr, ['x', 'y'], 'Brusselator', (x, y), 'brusselator')
+    pr.plot_2d_phase_grid(x_gross_corr, (2, 3), ['x', 'y'], 'Brusselator', (x, y))
+    
+    np_serial_sol = np.array([x,y]).T
+    error_calc(x_gross_corr, np_serial_sol[::time_steps_fine, :], t_gross, (2, 3))
     animator = PRanimation2D(x_gross_corr, x_fine_corr, [[0,4], [0.5, 5]], ['x', 'y'], 10, 1,
                              title='Brusselator', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
     animator.animate('tutorial/animations/brusselator.gif', 10)
@@ -92,15 +123,18 @@ class AdaptiveBrusselator(BaseParareal):
         return sol.y[:, -1]
     
     def fine_integration(self, t_start: float, t_end: float, x_initial: np.ndarray,
-                         coarse_step: int, iteration: int) -> Tuple[List[float], List[np.ndarray]]:
+                         coarse_step: int, iteration: int) -> Tuple[Optional[List[float]], List[np.ndarray]]:
         accuracy = self.get_fine_accuracy(iteration)
         sol = integ.solve_ivp(scipy_brusselator, (t_start, t_end), x_initial, 'Radau', dense_output=True, atol=accuracy, rtol=0)
         self._print(f'Iteration: {iteration}, step: {coarse_step}, evals:{sol.nfev}, accuracy:{accuracy}')
         
         self.nfev[coarse_step, iteration] = sol.nfev
-        # Output as many points as calls made by scipy to give an indication of the number of fine steps
-        t_fine = np.linspace(t_start, t_end, sol.nfev)
-        return (list(t_fine), list(sol.sol(t_fine).T))
+        if self.save_fine:
+            # Output as many points as calls made by scipy to give an indication of the number of fine steps
+            t_fine = np.linspace(t_start, t_end, sol.nfev)
+            return (list(t_fine), list(sol.sol(t_fine).T))
+        else:
+            return (None, [sol.sol(t_end)])
     
 def adaptive_main():
     x0 = np.array([0,1])

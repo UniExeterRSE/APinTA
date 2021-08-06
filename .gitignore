@@ -1,4 +1,5 @@
 tutorial/figs/burgers
 tutorial/figs/lorenz_attractor
+tutorial/figs/brusselator
 tutorial/__pycache__
 .vscode

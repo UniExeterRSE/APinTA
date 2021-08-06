@@ -18,6 +18,7 @@ class BaseParareal(ABC):
         
         self.print_name: Optional[str] = None
         self.tol: Optional[float] = None
+        self.save_fine = True
         
         self.t_coarse = self.get_coarse_t(a, b)
         self.t_fine = np.empty((self.n_coarse+1, self.iterations), object)
@@ -31,8 +32,8 @@ class BaseParareal(ABC):
         self.x_fine = np.empty((self.n_coarse, self.iterations), object)
         self.x_fine.fill([])
         
-    def solve(self, tolerance: Optional[float] = None,
-              processors: Optional[int] = None, print_ref: Optional[str] = None):
+    def solve(self, tolerance: Optional[float] = None, processors: Optional[int] = None,
+              print_ref: Optional[str] = None, save_fine: bool = True):
         """Solve the parareal problem
         
         Parameters:
@@ -46,22 +47,26 @@ class BaseParareal(ABC):
             If None progress information will not be displayed. Otherwise the
             string will be appended to the start of progress messages (can be 
             an empty string)
+        save_fine: bool
+            Whether to save the value of the function at each fine point
             
         Returns:
         iterations_done: int
             Number of iterations completed. This will normally be self.iterations-1
-            but can be less if the toelrance is reached.
+            but can be less if the tolerance is reached.
             Note: Any values in arrays with iteration index higher than iterations_done
-            will be uninitialsed and should not be used.
+            will be uninitialised and should not be used.
         """
         self.print_name = print_ref
         self.tol = tolerance
+        self.save_fine = save_fine
+        self._print('Starting parareal solve')
         if processors is None:
             return self._solve()
         try:
             # Create a pool of subprocesses, each with access to the class
             self._print('Creating pool')
-            p = Pool(processors, self.child_process_init, (self,))
+            p = Pool(processors, self._child_process_init, (self,))
             self._print('Pool created')
             return self._solve(p)
         finally:
@@ -69,7 +74,7 @@ class BaseParareal(ABC):
             p.join()
 
     @staticmethod
-    def child_process_init(_active_obj: 'BaseParareal'):
+    def _child_process_init(_active_obj: 'BaseParareal'):
         """Allows self to be passed to the child process on initialisation instead of every function call.
         Note: Any changes to self will not be mirrored however and so must be passed separately.
         
@@ -85,6 +90,7 @@ class BaseParareal(ABC):
             print(*args, **kwargs)
             
     def _solve(self, p: Optional[pool.Pool] = None) -> int:
+        self._print('Starting initial coarse solve')
         for j_coarse in range(self.n_coarse):
             next_coarse = self.coarse_integration_func(self.t_coarse[j_coarse],
                                                                    self.t_coarse[j_coarse+1],
@@ -95,23 +101,29 @@ class BaseParareal(ABC):
         
         for k in range(1, self.iterations):
             self._print(f'----------------- Iteration {k: <2} -----------------')
+            # Solve in serial
             if p is None:
                 for j in range(self.n_coarse):
                     t_result, x_result = self._do_fine_integ(j, k)
                     self.t_fine[j, k] = t_result
                     self.x_fine[j, k] = x_result
                     
+                self._print('Starting coarse prediction and correction')
                 for t in range(self.n_coarse):
                     self._coarse_correction(t, k)
+            # Solve in parallel
             else:
                 results = p.starmap(BaseParareal._parallel_integ, ((j, k, self.x_coarse_corr[j, k-1]) for j in range(self.n_coarse)))
+                self._print('Starting coarse prediction and correction')
                 for t in range(self.n_coarse):
                     t_result, x_result = results[t]
                     self.t_fine[t, k] = t_result
                     self.x_fine[t, k] = x_result
                     self._coarse_correction(t, k)
+                    
+            # Check if the desired tolerance has been achieved
             if self.tol is not None and self.is_within_tol(self.x_coarse_corr[:, k], self.x_coarse_corr[:, k-1]):
-                self._print('Reached tolerance after iteration', k)
+                self._print('Achieved given tolerance after iteration', k)
                 return k
         return k
                         
@@ -120,7 +132,7 @@ class BaseParareal(ABC):
         return active_obj._do_fine_integ(j_coarse, k_iteration, x_initial)
     
     def _do_fine_integ(self, j_coarse, k_iteration, x_initial=None):
-        # Allow x_inital to be specified differently to the class
+        # Allow x_initial to be specified differently to the class
         # This allows it to be passed to the subprocess separately
         if x_initial is None:
             x_initial = self.x_coarse_corr[j_coarse, k_iteration-1]
@@ -175,16 +187,19 @@ class BaseParareal(ABC):
     
     @abstractmethod
     def fine_integration(self, t_start: float, t_end: float, x_initial: np.ndarray,
-                   coarse_step: int, iteration: int) -> Tuple[List[float], List[np.ndarray]]:
+                   coarse_step: int, iteration: int) -> Tuple[Optional[List[float]], List[np.ndarray]]:
         """Finely integrates x_initial in as many steps as is desired.
         Must be overridden in a subclass.
         
         Returns:
         t_fine_result: List[float]
-            List containg the values of each fine step used
+            List containing the values of each fine step used. Should be None if
+            self.save_fine is False
         x_fine_result: List[np.ndarray]
-            List of the values of the function at each time step. Must be of the
-            same length as t_fine_result.
+            If self.save_fine is True then contains a list of the values of the
+            function at each time step. Must be of the same length as t_fine_result.
+            If self.save_fine is False then returns a single item list with the
+            value of the function at t_end
         """
         raise NotImplementedError
 
@@ -194,36 +209,44 @@ class FixedParareal(BaseParareal):
         self.n_fine = n_fine
     
     def fine_integration(self, t_start: float, t_end: float, x_initial: np.ndarray,
-                         coarse_step: int, iteration: int) -> Tuple[List[float], List[np.ndarray]]:
+                         coarse_step: int, iteration: int) -> Tuple[Optional[List[float]], List[np.ndarray]]:
         n_fine = self.n_fine + 1
         # Generate list of t for this step
         t_fine_result = list(np.linspace(t_start, t_end, n_fine))
         # Do the integration
         integ_result = self.fine_integration_func(t_fine_result, x_initial)
         
-        return (t_fine_result, integ_result)
+        if self.save_fine:
+            return (t_fine_result, integ_result)
+        else:
+            return (None, integ_result)
     
     @abstractmethod
     def fine_integration_func(self, t_vals: List[float], x_in: np.ndarray) -> List[np.ndarray]:
-        """Returns the value of the function at each of t_vals.
+        """If self.save_fine is True, returns the value of the function at each of t_vals.
         The returned list should be of the same length as t_vals and contain arrays with the
         same shape as x_in.
+        If self.save_fine is False returns the value of the function at t_vals[-1]
         """
         raise NotImplementedError
     
-class PRLorenz(FixedParareal):
+class _PRLorenz(FixedParareal):
     def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
         return RK4(lorenz63, b-a, 2, x_in)[-1] # type: ignore
     
     def fine_integration_func(self, t_vals: List[float], x_in: np.ndarray) -> List[np.ndarray]:
         dt = t_vals[1] - t_vals[0]
-        return list(RK4(lorenz63, dt, len(t_vals), x_in)) # type: ignore
+        result = RK4(lorenz63, dt, len(t_vals), x_in) # type: ignore
+        if self.save_fine:
+            return list(result)
+        else:
+            return [result[-1]]
     
 if __name__ == '__main__':
     from brusselator import RK4
     from lorenz63 import lorenz63
     
-    lorenz = PRLorenz(0, 5, 40, 36, 10, np.array([5,-5,20]))
+    lorenz = _PRLorenz(0, 5, 40, 36, 10, np.array([5,-5,20]))
     lorenz.solve()
     
     from pr_animation import PRanimation3D
