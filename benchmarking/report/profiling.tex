@@ -443,13 +443,41 @@ Isambard XCI   &  GCC-CrayMPI-CrayLibsci  & \checkmark     & \texttt{perf-report
 \section{Profiling Firedrake}
 \label{section:profiling_firedrake}
 
-ITAC was previously working on Isca with the Intel \textbf{Say how to modify the mpirun command. Can build problems be fixed with newer compiler versions?}
+It's not clear how to use Cray PAT with python applications (including Firedrake) as the profiler needs to instrument the executable. Loading the perftools-lite module and using the python from the cray-python module does not produce any profiling output.
 
-ARM Forge can be used to profile python applications. Make sure to add the \verb+-j 1+ flag when using ARM profilers on Isambard otherwise there can be a hang on exit\footnote{\url{https://developer.arm.com/documentation/101136/2102/Appendix/Known-issues/Arm-MAP}} (this appears to be specific to the ARM64 architecture).
+%-----------------------------
 
-\textbf{Test with a Firedrake example e.g. high resolution DG advection. This will show point-to-point communication pattern from domain decomposition.}
+\subsection{ARM Performance Reports and MAP}
 
-It's not clear how to use Cray PAT with python/Firedrake. Loading the perftools-lite module and using the python from the cray-python module does not produce any profiling output.
+ARM Forge can be used to profile python applications including Firedrake. It was necessary to add the \verb+-j 1+ flag when using ARM profilers on Isambard otherwise the job will hang on exit\footnote{\url{https://developer.arm.com/documentation/101136/2102/Appendix/Known-issues/Arm-MAP}} (this appears to be specific to the ARM64 architecture).
+
+The ARM Forge tools were tested using a higher resolution version of the DG advection example from the Firedrake tutorials. Results from Performance Reports and MAP are shown in figures~\ref{fig:DG_advection_performanceReport} and \ref{fig:DG_advection_MAP} respectively.
+%
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/DG_advection_performanceReport}
+\caption{Performance report from the Firedrake DG advection example}
+\label{fig:DG_advection_performanceReport}
+\end{center}
+\end{figure}
+%
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/DG_advection_MAP_mainPage}
+\includegraphics[scale=0.3]{figures/DG_advection_MAP_MPI}
+\caption{MAP profiling results from the Firedrake DG advection example. Top: main page; bottom: MPI metrics}
+\label{fig:DG_advection_MAP}
+\end{center}
+\end{figure}
+%
+In the main thread stacks pane we see where the most time is spent broken down by source code line. The top source code lines are the three linear solvers associated with different stages of the Runge-Kutta time stepping scheme. The next largest contributions are from setting up Firedrake itself and setting up the mesh.
+
+%-----------------------------
+
+\subsection{Intel Trace Analyzer and Collector}
+
+ITAC was previously used on Isca with the Intel toolchain (before the requirement for newer compilers). Tracing can be enabled by adding the \verb+-trace+ flag to the mpirun command which enables Firedrake to be profiled without any modifications to the build. 
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -460,12 +488,14 @@ Carry out initial performance studies using Firedrake for rapid prototyping. Use
 
 In all cases some interpretation is needed to understand the cause of the performance problem. 
 
+The build with the Intel toolchain could potentially be fixed by installing newer versions of the compilers which are now available for free download. This would enable the ITAC profiler to be used on Isca.
+
 \noindent
 \textbf{To do:}
 
 \begin{enumerate}
-\item Builds on Isca
-\item Firedrake examples: Performance Reports/MAP, old ITAC results?
+\item Finalise and write up builds section
+\item Firedrake examples: write up Performance Reports/MAP, run with Intel build?
 \item Write conclusions and recommendations section and describe the next steps with reference to the proposal document
 \end{enumerate}
 
