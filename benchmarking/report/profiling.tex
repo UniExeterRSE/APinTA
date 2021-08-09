@@ -426,17 +426,22 @@ Isambard XCI   &  GCC-CrayMPI-CrayLibsci  & \checkmark     & \texttt{perf-report
 \caption{Status of Firedrake builds and profiling for the Isca and Isambard}
 \label{table:build_status}
 \end{table}%
+%
+To force the build to use the reference BLAS/lapack implementation an environment variable is set which is used when PETSc is built:
+\begin{verbatim}
+export PETSC_CONFIGURE_OPTIONS="--download-fblaslapack=1"
+\end{verbatim}
+The PETSc configuration is reported at the end of the file PETSc configuration log file found at 
+\begin{verbatim}
+firedrake/src/petsc/configure.log
+\end{verbatim}
+which will confirm the impact of setting the 
+\verb+PETSC_CONFIGURE_OPTIONS+ environment variable.
 
-\begin{itemize}
-\item Flag to PETSc can be used to switch to reference version of BLAS/Lapack
-\item To see how PETSc was configured see the end of the file \texttt{firedrake/src/petsc/configure.log}
+The vendor supplied maths libraries are optimised for the platform under consideration so should offer better performance than the reference implementations. 
+Vendor supplied maths libraries often have support for multi-threading which needs to be switched off when using Firedrake (e.g. by setting \verb+OMP_NUM_THREADS=1+), However newer Firedrake versions issue a warning at run time if threading is not disabled. 
 
-\item Vendor supplied maths libraries often have support for multi-threading which needs to be switched off when using Firedrake. Newer Firedrake versions warn about this.
-
-\item Building Firedrake on Isca with the Intel compilers is not working because pybind11 requires Intel C++ compiler v18 or newer. 
-
-\item The Isca build scripts are named \verb+install_firedrake_isca_COMPILER_MPI_MATHLIB.sh+
-\end{itemize}
+Building Firedrake on Isca with the Intel compilers is not currently working because one component of the build (pybind11) requires a newer version of the Intel C++ compiler (v18 or newer). Building Firedrake with the Intel toolchain was previously successful (before the requirement for a newer C++ compiler) and could potentially be fixed by installing newer versions of the compilers (which are now available for free download).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -486,18 +491,7 @@ ITAC was previously used on Isca with the Intel toolchain (before the requiremen
 
 Carry out initial performance studies using Firedrake for rapid prototyping. Use ARM Forge to profile Firedrake on Isambard which enables profiling up to the 20\,992 cores. Once the scalability of the algorithm has been established on Isambard implement the algorithm in FRric and run on Archer-2 with profiling using Cray PAT. This will enable performance studies beyond 20\,000 cores.
 
-In all cases some interpretation is needed to understand the cause of the performance problem. 
-
 The build with the Intel toolchain could potentially be fixed by installing newer versions of the compilers which are now available for free download. This would enable the ITAC profiler to be used on Isca.
-
-\noindent
-\textbf{To do:}
-
-\begin{enumerate}
-\item Finalise and write up builds section
-\item Firedrake examples: write up Performance Reports/MAP, run with Intel build?
-\item Write conclusions and recommendations section and describe the next steps with reference to the proposal document
-\end{enumerate}
 
 \pagebreak
 
