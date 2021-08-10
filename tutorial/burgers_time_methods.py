@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
-from adaptive_parareal import FixedParareal
+from adaptive_parareal import FixedParareal, CachedPR
 import burgers_funcs as b_funcs
 import burgers
 from burgers_q_funcs import *
@@ -13,11 +13,16 @@ from burgers_q_funcs import *
 BURGERS_INT_LIST: List[b_funcs.INT_FUNC_TYPE] = [b_funcs.burgers_imexRK, b_funcs.burgers_SL]
 BURGERS_INT_NAMES: List[str] = ['IMEX', 'SL']
 
-class BurgersParareal(FixedParareal):
+class BurgersParareal(FixedParareal, CachedPR):
     def __init__(self, t_range: Tuple[float, float], dt_fine: float, dt_coarse: float,
                  x_range: Tuple[float, float], dx: float,
                  sol_func: Callable, q_func: Callable,
                  iterations: int, nu: float, coarse_int_func: b_funcs.INT_FUNC_TYPE):
+        found_cache = self.get_cache(t_range, dt_fine, dt_coarse, x_range, dx, sol_func,
+                                           q_func, iterations, nu, coarse_int_func)
+        if found_cache: # Don't initialise if a cached object is being used instead
+            return
+        
         t_len = t_range[1] - t_range[0]
         n_coarse = int(t_len/dt_coarse)
         n_fine = int(t_len/dt_fine/n_coarse)
@@ -143,6 +148,7 @@ def step_scheme_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: 
 
         print(f'{name}:', 'Starting parareal solve')
         iters_done = sol.solve(tolerance=tol, processors=5, print_ref=name, save_fine=False)
+        sol.save_cache()
         for k in range(iters_done+1):
             axs[i].plot(get_max_error(sol.x_coarse_corr[:, k, :], true_sol), label=f'k = {k}')
             
@@ -191,6 +197,7 @@ def nu_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: float,
             
         print(f'nu={nu}:', 'Starting parareal solve')
         iters_done = sol.solve(tolerance=tol, processors=5, print_ref=f'nu={nu}')
+        sol.save_cache()
         for j, k in enumerate(plot_iters):
             # Check the solve didn't stop before reaching this iteration
             if k > iters_done:
@@ -224,6 +231,7 @@ def time_step_convergence(t_range: Tuple[float, float],
             for coarse_func, func_name in coarse_int_funcs:
                 sol = BurgersParareal(t_range, dt_fine, dt_coarse, x_range, dx, sol_func, q_func, max_iterations, nu, coarse_func)
                 iters_taken = sol.solve(tol, 5, func_name)
+                sol.save_cache()
                 num_text = f'{iters_taken:>3d}'
                 output += f'{num_text:<8s}  '
             output += '\n'
@@ -242,6 +250,7 @@ def nu_convergence(t_range: Tuple[float, float], dt_fine: float, dt_coarse: floa
         for nu in nu_vals:
             sol = BurgersParareal(t_range, dt_fine, dt_coarse, x_range, dx, sol_func, q_func, max_iterations, nu, coarse_func)
             iters_taken.append(sol.solve(tol, 5, f'{func_name}, nu={nu}', False))
+            sol.save_cache()
             # for i in range(1, iters_taken[-1]+1):
             #     burgers.plot_burgers(sol.t_coarse, sol.x_vals, sol.x_coarse_corr[:, i, :], f'Iteration {i}')
         ax.plot(nu_vals, iters_taken, 'o-', label='$\mathcal{C}_{'+func_name+'}$')
@@ -259,6 +268,7 @@ def iteration_error(t_range: Tuple[float, float], dt_fine: float, dt_coarse: flo
     sol = BurgersParareal(t_range, dt_fine, dt_coarse, x_range, dx, sol_func, q_func,
                           max_iterations, nu, coarse_int_func)
     iters_complete = sol.solve(tol, 5, name, False)
+    sol.save_cache()
     errors = np.abs(sol.x_coarse_corr[:, 1:iters_complete+1, :] - sol.x_coarse_corr[:, 0:iters_complete, :])
     error_lst = []
     for iteration in errors.swapaxes(0, 1):

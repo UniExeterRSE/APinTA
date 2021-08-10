@@ -3,6 +3,12 @@ import numpy as np
 from multiprocessing import Pool, pool
 from abc import ABC, abstractmethod
 
+import functools
+import os.path
+import shutil
+import pickle
+import hashlib
+
 class BaseParareal(ABC):
     def __init__(self,
                  a: float,
@@ -19,6 +25,8 @@ class BaseParareal(ABC):
         self.print_name: Optional[str] = None
         self.tol: Optional[float] = None
         self.save_fine = True
+        self.solved = False
+        self.iters_taken: Optional[int] = None
         
         self.t_coarse = self.get_coarse_t(a, b)
         self.t_fine = np.empty((self.n_coarse+1, self.iterations), object)
@@ -57,6 +65,12 @@ class BaseParareal(ABC):
             Note: Any values in arrays with iteration index higher than iterations_done
             will be uninitialised and should not be used.
         """
+        # Don't solve again if already done with the same tolerance and with fine
+        # values saved if required
+        if self.solved and tolerance == self.tol and not (save_fine and not self.save_fine):
+            self._print('Solve already completed')
+            return self.iters_taken
+        
         self.print_name = print_ref
         self.tol = tolerance
         self.save_fine = save_fine
@@ -124,7 +138,11 @@ class BaseParareal(ABC):
             # Check if the desired tolerance has been achieved
             if self.tol is not None and self.is_within_tol(self.x_coarse_corr[:, k], self.x_coarse_corr[:, k-1]):
                 self._print('Achieved given tolerance after iteration', k)
+                self.solved = True
+                self.iters_taken = k
                 return k
+        self.iters_taken = k
+        self.solved = True
         return k
                         
     @staticmethod
@@ -230,6 +248,102 @@ class FixedParareal(BaseParareal):
         """
         raise NotImplementedError
     
+    
+class CachedPR:
+    """Mixin for Parareal objects to provide caching of results between runs"""
+    def get_cache(self, *args, quiet_output=False):
+        """Finds a cached solve if it exists and updates the object with the cached values.
+        
+        This should be called at the start of __init__ and provided all arguments relevant
+        to the solve. A solve with the same argument hash is then searched for with the
+        results applied to the object. If a cached solution is found - indicated by found_cache,
+        initiation should be aborted to avoid overwriting the solve.
+        
+        Keyword arguments:
+        quiet_output: bool = False
+            Whether to suppress printed output
+        
+        Returns:
+        found_cache: bool
+            Was a cached result found and loaded successfully. If True, no further initiation
+            should take place.
+        """
+        self._quiet = quiet_output
+        
+        cls_name = self.__class__.__name__
+        folder = f'tutorial\\pickles\\{cls_name}'
+        if not self._quiet:
+            print('Checking for cached solve')
+        if not os.path.exists(folder):
+            if not self._quiet:
+                print(f'Cache folder {folder} not found')
+            return False
+        
+        self._args_hash = self._make_hash(args)
+        if not self._quiet:
+            print('Parameter hash:', self._args_hash)
+        if os.path.exists(f'{folder}\\{self._args_hash}'):
+            # Cache exists
+            new_obj = self.load_cache(self._args_hash, self._quiet)
+            self.__dict__.update(new_obj.__dict__)
+            return True
+        
+        # No cache exists
+        if not self._quiet:
+            print('No cache found')
+        return False
+    
+    @staticmethod
+    def _make_hash(obj):
+        if callable(obj):
+            if isinstance(obj, functools.partial):
+                return CachedPR._make_hash((*obj.args, obj.keywords, obj.func.__name__))
+            return CachedPR._hash_func(obj.__name__)
+        if isinstance(obj, (set, tuple, list, np.ndarray)):
+            return CachedPR._hash_func(tuple(CachedPR._make_hash(item) for item in obj))
+        if isinstance(obj, dict):
+            new_dict = {}
+            for name, v in obj.items():
+                new_dict[name] = CachedPR._make_hash(v)
+            return CachedPR._hash_func(sorted(new_dict.items()))
+        return CachedPR._hash_func(obj)
+    
+    @staticmethod
+    def _hash_func(obj):
+        byte_obj = bytes(str(obj), 'utf-8')
+        return hashlib.md5(byte_obj).hexdigest()
+    
+    def save_cache(self, name: Optional[str] = None):
+        """Cache the current state of the object. This is done using the argument
+        hash as the file name. If name is provided a second copy is stored with as
+        well.
+        
+        Parameters:
+        name: str or None
+            The name to save the object under (as well as the hash value)
+        """
+        cls_name = self.__class__.__name__
+        folder = f'tutorial\\pickles\\{cls_name}'
+        if not self._quiet:
+            print(f'Saving cache to {folder}\\{self._args_hash}')
+        if not os.path.exists(folder):
+            raise FileNotFoundError('Caching folder does not exist')
+
+        with open(f'{folder}\\{self._args_hash}', 'wb') as f:
+            pickle.dump(self, f)
+        if name:
+            shutil.copyfile(f'{folder}\\{self._args_hash}', f'{folder}\\{name}')
+            
+    @classmethod
+    def load_cache(cls, file_name: str, quiet=False):
+        """Load and return a saved parareal solve."""
+        if not quiet:
+            print(f'Loading cache at tutorial\\pickles\\{cls.__name__}\\{file_name}')
+        with open(f'tutorial\\pickles\\{cls.__name__}\\{file_name}', 'rb') as f:
+            return pickle.load(f)
+    
+
+# Example implementation for the Lorenz system
 class _PRLorenz(FixedParareal):
     def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
         return RK4(lorenz63, b-a, 2, x_in)[-1] # type: ignore
