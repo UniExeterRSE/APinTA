@@ -123,9 +123,8 @@ def plot_comp(t_gross, x_gross, x_fine, var_names = None, title = None,
         
 def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = None,
               *plot_args, **plot_kwargs):
-    x_gross = x_gross.swapaxes(1,2).swapaxes(0,1)
-    x_fine = x_fine.swapaxes(0,1).swapaxes(0,3)
-    num_vars, num_gross, num_t, iterations = x_fine.shape
+    num_gross, iterations = x_fine.shape
+    num_vars = len(x_fine[-1, -1][-1])
     if var_names is None:
         var_names = []
         for x in range(num_vars):
@@ -139,17 +138,17 @@ def plot_fine_comp(t_gross, x_gross, t_fine, x_fine, var_names = None, title = N
             fig.suptitle(f'{title}: Iteration {i}')
         axs = fig.subplots(num_vars, 1)
         for x in range(num_vars):
-            axs[x].plot(t_gross, x_gross[x, :, i-1], '-o', *plot_args, **plot_kwargs)
+            axs[x].plot(t_gross, x_gross[:, i-1, x], '-o', *plot_args, **plot_kwargs)
             for f in range(num_gross):
-                axs[x].plot(t_fine[f, :], x_fine[x, f, :, i], *plot_args, **plot_kwargs)
+                fine_vals = list(val_lst[x] for val_lst in x_fine[f, i])
+                axs[x].plot(t_fine[f, i], fine_vals, *plot_args, **plot_kwargs)
                 axs[x].set_ylabel(var_names[x])
         axs[-1].set_xlabel('Time')
         plt.show()
         
 def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
                   save_name = None, *plot_args, **plot_kwargs):
-    x_gross = x_gross.swapaxes(1,2).swapaxes(0,1)
-    num_vars, num_t, iterations = x_gross.shape
+    num_t, iterations, num_vars = x_gross.shape
     assert num_vars == 2
     if var_names is None:
         var_names = []
@@ -165,7 +164,7 @@ def plot_2d_phase(x_gross, var_names = None, title = None, comparison = None,
         axs = fig.subplots(1, 1)
         if comparison is not None:
             axs.plot(comparison[0], comparison[1], *plot_args, **plot_kwargs)
-        axs.plot(x_gross[0, :, i], x_gross[1, :, i], 'o', *plot_args, **plot_kwargs)
+        axs.plot(x_gross[:, i, 0], x_gross[:, i, 1], 'o', *plot_args, **plot_kwargs)
         
         axs.set_xlabel(var_names[0])
         axs.set_ylabel(var_names[1])

@@ -6,7 +6,7 @@ import matplotlib.cm as cm
 
 import parareal as pr
 from pr_animation import PRanimation2D, PRanimationAdaptive2D
-from adaptive_parareal import BaseParareal
+from adaptive_parareal import BaseParareal, FixedParareal, CachedPR
 
 A = 1
 B = 3
@@ -33,6 +33,23 @@ def brusselator(x, y, A=1, B=3):
 
 def scipy_brusselator(t, y):
     return np.array(brusselator(*y, A=A, B=B))
+
+class BrusselatorParareal(FixedParareal, CachedPR):
+    def __init__(self, a: float, b: float, n_coarse: int, n_fine: int, iterations: int, x_initial: np.ndarray):
+        if self.get_cache(a, b, n_coarse, n_fine, iterations, x_initial):
+            return
+        super().__init__(a, b, n_coarse, n_fine, iterations, x_initial)
+    
+    def coarse_integration_func(self, a: float, b: float, x_in: np.ndarray, coarse_step: int, iteration: int) -> np.ndarray:
+        return RK4(brusselator, b-a, 2, x_in)[-1] # type: ignore
+    
+    def fine_integration_func(self, t_vals: List[float], x_in: np.ndarray) -> List[np.ndarray]:
+        dt = t_vals[1] - t_vals[0]
+        result = RK4(brusselator, dt, len(t_vals), x_in) # type: ignore
+        if self.save_fine:
+            return list(result)
+        else:
+            return [result[-1]]
 
 def draw_plots2d(x, y, t, title):
     ax = plt.figure().subplots(1,1)
@@ -83,21 +100,23 @@ def main():
     time_steps_fine = 20
     time_steps_gross = 32
     time_range = [0, 12]
-    initial_cond = (0,1)
+    initial_cond = np.array([0,1])
     dt = time_range[1]/(time_steps_fine*time_steps_gross)
     t = np.linspace(time_range[0], time_range[1], time_steps_fine*time_steps_gross+1)
     x, y = RK4(brusselator, dt, time_steps_fine*time_steps_gross+1, initial_cond, A=A, B=B).T
     
     draw_plots2d(x, y, t, 'Brusselator')
     
-    t_gross, x_gross_corr, t_fine, x_fine_corr = pr.parareal(time_range[0], time_range[1], time_steps_gross, time_steps_fine, 6, initial_cond, RK4, RK4, brusselator, full_output=True, A=A, B=B)
-    pr.plot_fine_comp(t_gross, x_gross_corr, t_fine, x_fine_corr, ['x', 'y'], 'Brusselator')
-    # pr.plot_2d_phase(x_gross_corr, ['x', 'y'], 'Brusselator', (x, y), 'brusselator')
-    pr.plot_2d_phase_grid(x_gross_corr, (2, 3), ['x', 'y'], 'Brusselator', (x, y))
+    pr_sol = BrusselatorParareal(time_range[0], time_range[1], time_steps_gross, time_steps_fine, 6, initial_cond)
+    pr_sol.solve(processors=5, print_ref='Busselator', save_fine=True)
+    pr_sol.save_cache()
+    pr.plot_fine_comp(pr_sol.t_coarse, pr_sol.x_coarse_corr, pr_sol.t_fine, pr_sol.x_fine, ['x', 'y'], 'Brusselator')
+    pr.plot_2d_phase(pr_sol.x_coarse_corr, ['x', 'y'], 'Brusselator', (x, y), 'brusselator')
+    pr.plot_2d_phase_grid(pr_sol.x_coarse_corr, (2, 3), ['x', 'y'], 'Brusselator', (x, y))
     
     np_serial_sol = np.array([x,y]).T
-    error_calc(x_gross_corr, np_serial_sol[::time_steps_fine, :], t_gross, (2, 3))
-    animator = PRanimation2D(x_gross_corr, x_fine_corr, [[0,4], [0.5, 5]], ['x', 'y'], 10, 1,
+    error_calc(pr_sol.x_coarse_corr, np_serial_sol[::time_steps_fine, :], pr_sol.t_coarse, (2, 3))
+    animator = PRanimation2D(pr_sol.x_coarse_corr, pr_sol.x_fine, [[0,4], [0.5, 5]], ['x', 'y'], 10, 1,
                              title='Brusselator', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
     animator.animate('tutorial/animations/brusselator.gif', 10)
 
