@@ -41,7 +41,7 @@ class BaseParareal(ABC):
         self.x_fine.fill([])
         
     def solve(self, tolerance: Optional[float] = None, processors: Optional[int] = None,
-              print_ref: Optional[str] = None, save_fine: bool = True):
+              print_ref: Optional[str] = None, save_fine: bool = True, always_solve = False):
         """Solve the parareal problem
         
         Parameters:
@@ -55,8 +55,11 @@ class BaseParareal(ABC):
             If None progress information will not be displayed. Otherwise the
             string will be appended to the start of progress messages (can be 
             an empty string)
-        save_fine: bool
+        save_fine: bool = True
             Whether to save the value of the function at each fine point
+        always_solve: bool = False
+            Whether to solve even if the system is already solved (as indicated
+            by self.solved)
             
         Returns:
         iterations_done: int
@@ -67,7 +70,8 @@ class BaseParareal(ABC):
         """
         # Don't solve again if already done with the same tolerance and with fine
         # values saved if required
-        if self.solved and tolerance == self.tol and not (save_fine and not self.save_fine):
+        if ( not always_solve and self.solved and tolerance == self.tol and
+             not (save_fine and not self.save_fine) ):
             self._print('Solve already completed')
             return self.iters_taken
         

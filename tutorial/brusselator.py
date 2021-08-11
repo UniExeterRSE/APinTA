@@ -157,10 +157,11 @@ class AdaptiveBrusselator(BaseParareal):
     
 def adaptive_main():
     x0 = np.array([0,1])
+    classic_iters_taken = 10
     eta = 1e-6
     # solve = AdaptiveBrusselator(0, 900, 0.1, 20, x0, eta, 20)
-    solve = AdaptiveBrusselator(0, 12, 12/32, 10, x0, eta, 10)
-    solve.solve()
+    solve = AdaptiveBrusselator(0, 12, 12/32, 10, x0, eta, classic_iters_taken)
+    solve.solve(eta, 5)
     
     animator = PRanimationAdaptive2D(solve.x_coarse_corr, solve.x_fine, [[0,4], [0.5, 5]], ['x', 'y'], 10, 1,
                              title='Brusselator', line_colour=cm.get_cmap('YlOrRd_r'), dot_colour=cm.get_cmap('YlOrRd_r'))
