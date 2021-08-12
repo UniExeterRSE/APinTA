@@ -57,7 +57,7 @@ def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None, zlim=[-1.5,
     
     for i in range(u_fine.shape[1]):
         x_grid, t_grid = np.meshgrid(x, t_fine[i, :])
-        surface = ax.plot_surface(x_grid, t_grid, u_fine[:, i, :], cmap=cm.turbo, antialiased=False, vmin=-1, vmax=1)
+        surface = ax.plot_surface(x_grid, t_grid, u_fine[:, i, :], cmap=cm.turbo, antialiased=False, vmin=zlim[0], vmax=zlim[1])
     ax.set_xlabel("x")
     ax.set_ylabel("t")
     ax.set_zlabel("u")

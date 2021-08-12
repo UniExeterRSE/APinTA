@@ -66,15 +66,15 @@ class BurgersParareal(FixedParareal, CachedPR):
         self._print(f'Max difference: {max_diff: .3e}, Allowed tolerance: {self.tol}')
         return max_diff < self.tol
     
-def serial_solve(x_vals, t_vals, nu, x0, q_func, integ_func: b_funcs.INT_FUNC_TYPE):
+def serial_solve(x_vals, t_vals, nu, x0, q_func, integ_func: b_funcs.INT_FUNC_TYPE, print_info=False):
     dx = x_vals[1] - x_vals[0]
     dt = t_vals[1] - t_vals[0]
     
     output = np.empty((len(t_vals), len(x_vals)))
     output[0, :] = x0
     for i, t in enumerate(t_vals[:-1]):
-        # if i and i%200 == 0:
-        #     print(f'Step {i}')
+        if i and i%200 == 0 and print_info:
+            print(f'Step {i}')
         i_minus = i-1 if i > 0 else 0
         output[i+1, :] = integ_func(output[i, :], dt, dx, nu, output[i_minus, :], x_vals, t, q_func)
         
@@ -82,7 +82,7 @@ def serial_solve(x_vals, t_vals, nu, x0, q_func, integ_func: b_funcs.INT_FUNC_TY
 
 def serial_solves(x_range, t_range, dx_vals, dt_vals, nu_vals, integ_func: b_funcs.INT_FUNC_TYPE,
                   sol_func: Callable, q_func: Callable, print_error=False, plots=False):
-    total_width = 7*len(dx_vals) + 7
+    total_width = 8*len(dx_vals) + 7
     for dt in dt_vals:
         text = f'dt = {dt:.0e}'
         print(f'{text:<{total_width}s}  ', end='')
@@ -93,7 +93,7 @@ def serial_solves(x_range, t_range, dx_vals, dt_vals, nu_vals, integ_func: b_fun
         print(f'{text:<7s}', end='')
         for dx in dx_vals:
             text = f'1/{1/dx:.0f}'
-            print(f'{text:^7s}', end='')
+            print(f'{text:^8s}', end='')
         print('  ', end='')
     print()
     for nu in nu_vals:
@@ -109,17 +109,17 @@ def serial_solves(x_range, t_range, dx_vals, dt_vals, nu_vals, integ_func: b_fun
                     warnings.filterwarnings('ignore')
                     sol = serial_solve(x_vals, t_vals, nu, x_initial, q_func, integ_func)
                     if plots:
-                        burgers.plot_burgers(t_vals, x_vals, sol, f'dt: {dt:.0e}, dx: 1/{1/dx:.0f}, nu: {nu:.0e}')
+                        burgers.plot_burgers(t_vals, x_vals, sol, f'dt: {dt:.0e}, dx: 1/{1/dx:.0f}, nu: {nu:.0e}', zlim=[-1, 1])
                     if np.isnan(sol).any():
-                        print(f'{"x":^7s}', end='')
+                        print(f'{"x":^8s}', end='')
                     else:
                         x_grid, t_grid = np.meshgrid(x_vals, t_vals)
                         true_sol = sol_func(t_grid, x_grid)
                         if print_error:
                             max_err = np.amax(np.abs(sol-true_sol))
-                            print(f'{max_err:^7.0e}', end='')
+                            print(f'{max_err:^8.1e}', end='')
                         else:
-                            print(f'{"o":^7s}', end='')
+                            print(f'{"o":^8s}', end='')
             print('  ', end='')
         print()
         
@@ -155,7 +155,7 @@ def step_scheme_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: 
         # Calculate fine solution
         print(f'{name}:', 'Starting fine solve')
         fine_t_vals = np.linspace(t_range[0], t_range[1], sol.n_coarse*sol.n_fine+1)
-        fine_sol = serial_solve(sol.x_vals, fine_t_vals, nu, sol.sol_func(0, sol.x_vals), sol.q_func, coarse_int_func)
+        fine_sol = serial_solve(sol.x_vals, fine_t_vals, nu, sol.sol_func(0, sol.x_vals), sol.q_func, coarse_int_func, True)
         fine_sol_coarse = fine_sol[::sol.n_fine, :]
         axs[i].plot(get_max_error(fine_sol_coarse, true_sol), '--', label='$\mathcal{F}_{'+name+'}$')
         # Save the IMEX solution
@@ -166,7 +166,7 @@ def step_scheme_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: 
             if fine_sol_imex is None:
                 print(f'{name}:', 'Starting IMEX fine solve')
                 fine_t_vals = np.linspace(t_range[0], t_range[1], sol.n_coarse*sol.n_fine+1)
-                fine_sol = serial_solve(sol.x_vals, fine_t_vals, nu, sol.sol_func(0, sol.x_vals), sol.q_func, burgers.burgers_imexRK)
+                fine_sol = serial_solve(sol.x_vals, fine_t_vals, nu, sol.sol_func(0, sol.x_vals), sol.q_func, burgers.burgers_imexRK, True)
                 fine_sol_imex = fine_sol[::sol.n_fine, :]
             axs[i].plot(get_max_error(fine_sol_imex, true_sol), '--', label='$\mathcal{F}_{IMEX}$')
             
@@ -174,7 +174,9 @@ def step_scheme_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: 
         axs[i].set_xlabel('Coarse time step')
         axs[i].set_ylabel('$\epsilon_{max}$')
         axs[i].set_ylim(top=10)
+        axs[i].set_title(f'Coarse solver: {name}')
         axs[i].legend()
+    fig.suptitle(f'Errors for different coarse solvers\n$\Delta t = {dt_fine}, \Delta T = {dt_coarse}, \Delta x = 1/{1/dx:.0f}$')
     plt.show()
     
 def nu_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: float,
@@ -211,6 +213,7 @@ def nu_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: float,
         axs[i].set_ylabel('$\epsilon_{max}$')
         axs[i].set_ylim(top=10)
         axs[i].legend()
+    fig.suptitle(f'Errors for different values of $\nu$\n$\Delta t = {dt_fine}, \Delta T = {dt_coarse}, \Delta x = 1/{1/dx:.0f}$')
     plt.show()
     
 def time_step_convergence(t_range: Tuple[float, float],
@@ -295,7 +298,7 @@ def plot_error_change(t_range: Tuple[float, float], dt_fine: float, dt_coarse: f
         axs[i].set_xlabel('Iteration')
         axs[i].set_ylabel('$\epsilon_{max}$')
         axs[i].set_ylim(top=10)
-        axs[i].set_title(f'Coarse function: {name}')
+        axs[i].set_title(f'Coarse function: {name}\n$\Delta t = {dt_fine}, \Delta T = {dt_coarse}, \Delta x = 1/{1/dx:.0f}$')
         axs[i].legend()
     plt.show()
     
@@ -311,17 +314,17 @@ def benchmark1():
     # serial_solves(x_range, t_range, [1/64, 1/128, 1/256], [1e-4, 1e-3, 1e-2], [0]+[10**x for x in range(-4,1)], b_funcs.burgers_SL, sol_func, Q_func, True)
     
     # B1 parameters
-    B1_dt_fine = 1e-4 # 1e-6
+    B1_dt_fine = 1e-5 # 1e-6
     B1_dt_coarse = 1e-2
     B1_dx = 1/256
     B1_tolerance = 1e-8
     
-    step_scheme_errors(t_range, 1e-5, B1_dt_coarse, x_range, B1_dx, sol_func, Q_func, 5, 1e-2, B1_tolerance)
+    # step_scheme_errors(t_range, 1e-5, B1_dt_coarse, x_range, B1_dx, sol_func, Q_func, 5, 1e-2, B1_tolerance)
     B1_nu_vals = 1e-3*np.array([1, 2, 4, 6, 8, 10])
     # nu_errors(t_range, B1_dt_fine, B1_dt_coarse, x_range, B1_dx, sol_func, Q_func, 81, nu_vals, B1_tolerance,
     #           burgers.burgers_imexRK, [1, 2, 40, 80])
-    # nu_errors(t_range, B1_dt_fine, B1_dt_coarse, x_range, B1_dx, sol_func, Q_func, 3, B1_nu_vals, B1_tolerance,
-    #           burgers.burgers_SL, [1, 2])
+    nu_errors(t_range, B1_dt_fine, B1_dt_coarse, x_range, B1_dx, sol_func, Q_func, 3, B1_nu_vals, B1_tolerance,
+              burgers.burgers_SL, [1, 2])
     
     B1_dt_coarse_vals = [2.5e-3, 1e-3]
     # time_step_convergence(t_range, B1_dt_fine, B1_dt_coarse_vals, x_range, B1_dx, sol_func, Q_func, 8,
@@ -349,6 +352,6 @@ def benchmark2():
     #                   10, [0]+[10**x for x in range(-4,1)], B2_tolerance, ((burgers.burgers_SL, 'SL'), (burgers.burgers_imexRK, 'IMEX')))
     
 if __name__ == '__main__':
-    # benchmark1()
-    benchmark2()
+    benchmark1()
+    # benchmark2()
     

@@ -92,7 +92,7 @@ def _get_departure_points(x_arrival, u_n: interp1d, u_nminus: interp1d, dt, tol=
 
 def burgers_SL(u_n, dt, dx, nu, u_nminus, x_vals, t=None, Q_func=None):
     q_nplus = 0
-    if Q_func and t:
+    if Q_func and t is not None:
         q_nplus = Q_func(t+dt, x_vals, nu)
     
     num_vals = len(x_vals)
@@ -106,6 +106,26 @@ def burgers_SL(u_n, dt, dx, nu, u_nminus, x_vals, t=None, Q_func=None):
     
     x_dep = _get_departure_points(x_vals, u_n_interp_lin, u_nminus_interp_lin, dt)
     u_n_star = u_n_interp_cub(x_dep) + dt*q_nplus
+    u_nplus = optimize.fsolve(_imexRK_scipy_func, u_n, (u_n_star, dt, dx, nu))
+    
+    return u_nplus
+
+def burgers_SL_Qn(u_n, dt, dx, nu, u_nminus, x_vals, t=None, Q_func=None):
+    q_n = 0
+    if Q_func and t is not None:
+        q_n = Q_func(t, x_vals, nu)
+    
+    num_vals = len(x_vals)
+    extended_x_vals = np.pad(x_vals, (num_vals, num_vals), 'reflect', reflect_type='odd')
+    u_n_extended = np.pad(u_n, (num_vals, num_vals), 'wrap')
+    u_nminus_extended = np.pad(u_nminus, (num_vals, num_vals), 'wrap')
+    
+    u_n_interp_lin = interp1d(extended_x_vals, u_n_extended, 'linear', fill_value='extrapolate', assume_sorted=True)
+    u_nminus_interp_lin = interp1d(extended_x_vals, u_nminus_extended, 'linear', fill_value='extrapolate', assume_sorted=True)
+    u_n_interp_cub = interp1d(extended_x_vals, u_n_extended, 'cubic', fill_value='extrapolate', assume_sorted=True)
+    
+    x_dep = _get_departure_points(x_vals, u_n_interp_lin, u_nminus_interp_lin, dt)
+    u_n_star = u_n_interp_cub(x_dep) + dt*q_n
     u_nplus = optimize.fsolve(_imexRK_scipy_func, u_n, (u_n_star, dt, dx, nu))
     
     return u_nplus
