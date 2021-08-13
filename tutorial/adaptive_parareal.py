@@ -56,7 +56,8 @@ class BaseParareal(ABC):
             string will be appended to the start of progress messages (can be 
             an empty string)
         save_fine: bool = True
-            Whether to save the value of the function at each fine point
+            Whether to save the value of the function at each fine point. Setting
+            this to False will save a large amount of memory (and storage if caching)
         always_solve: bool = False
             Whether to solve even if the system is already solved (as indicated
             by self.solved)

@@ -12,6 +12,7 @@ def initial_func(x):
     return np.sin(2*np.pi*x)
 
 def integ_burgers(dt, dx, n, u0, nu=0.02, burgers_func: Callable = burgers_scipy, **func_kwargs):
+    """Burgers integration function to be given to parareal solver"""
     u_len = len(u0)
     output = np.empty((n, u_len))
     output[0, :] = u0
@@ -22,6 +23,7 @@ def integ_burgers(dt, dx, n, u0, nu=0.02, burgers_func: Callable = burgers_scipy
     return output
 
 def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu, burgers_func=burgers_scipy):
+    """Do a serial solve of Burgers equation"""
     t_vals = np.linspace(*t_range, num_t+1)
     num_x = len(x_vals)
     u_vals = np.zeros((num_t+1, num_x))
@@ -36,6 +38,8 @@ def solve_burgers(t_range : Tuple[float, float], x_vals, num_t, x0, nu, burgers_
     return t_vals, u_vals
 
 def join_fine(t_fine, u_fine):
+    """Join each of the fine values separated by coarse step into one set of values
+    (still split by iteration)."""
     num_vars, n_gross, n_fine, iterations = u_fine.shape
     n_fine -= 1 # Don't include overlapping endpoints
     t_joined = np.empty(n_gross*n_fine)
@@ -48,10 +52,14 @@ def join_fine(t_fine, u_fine):
     return (t_joined, u_joined)
     
 def plot_burgers(t, x, u, title=None, save_name=None, zlim=[-1.5, 1.5]):
+    """Plot a solution to Burgers equation"""
     shape0, shape1 = u.shape
     plot_burgers_fine(t.reshape(1, shape0), x, u.reshape(shape0, 1, shape1), title, save_name, zlim)
     
 def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None, zlim=[-1.5, 1.5]):
+    """Plot the fine solution to Burgers as separate surfaces to allow
+    for discontinuities between each coarse step
+    """
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(projection='3d')
     
@@ -72,6 +80,9 @@ def plot_burgers_fine(t_fine, x, u_fine, title=None, save_name=None, zlim=[-1.5,
     plt.show()
     
 def find_errors(u_para, u_true):
+    """Calculate errors between two solutions using the L2-norm in space and
+    L-inf in time (maximum)
+    """
     n_t, n_x, iterations = u_para.shape
     diff = u_para - u_true.reshape((n_t, n_x, 1)).repeat(iterations, 2)
     diff_squared = diff**2
@@ -84,6 +95,7 @@ def find_errors(u_para, u_true):
     return linf_error
 
 def plot_errors(vals, labels):
+    """Plot a 2 array of errors for each iteration"""
     fig = plt.figure()
     ax = fig.subplots(1, 1)
     iterations = len(vals[0])
@@ -99,6 +111,8 @@ def plot_errors(vals, labels):
     plt.show()
     
 def errors_tmax(t_max_vals, x_values, x0, n_coarse, n_fine, iterations):
+    """Effect on errors by changing t_max (fixed number of time steps).
+    See Gander and Hairer Fig. 7"""
     dx = x_values[1] - x_values[0]
     error_lst = []
     label_lst = []
@@ -118,6 +132,8 @@ def errors_tmax(t_max_vals, x_values, x0, n_coarse, n_fine, iterations):
     plot_errors(error_lst, label_lst)
     
 def errors_discretisation(dx_div_vals, n_fine_mult_vals, dx0, n_fine0, x_range, x0_func, n_coarse, t_max, iterations):
+    """Effect on errors by changing the number of fine steps and a divisor for dx.
+    See Gander and Hairer Fig. 7"""
     error_lst = []
     label_lst = []
     

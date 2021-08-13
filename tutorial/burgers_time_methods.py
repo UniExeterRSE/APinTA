@@ -82,6 +82,7 @@ def serial_solve(x_vals, t_vals, nu, x0, q_func, integ_func: b_funcs.INT_FUNC_TY
 
 def serial_solves(x_range, t_range, dx_vals, dt_vals, nu_vals, integ_func: b_funcs.INT_FUNC_TYPE,
                   sol_func: Callable, q_func: Callable, print_error=False, plots=False):
+    """Reproduce table 2 from Schmitt et al."""
     total_width = 8*len(dx_vals) + 7
     for dt in dt_vals:
         text = f'dt = {dt:.0e}'
@@ -130,8 +131,9 @@ def step_scheme_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: 
                        x_range: Tuple[float, float], dx: float,
                        sol_func: Callable, q_func: Callable,
                        iterations: int, nu: float, tol: Optional[float]):
+    """Reproduce fig. 4 from Schmitt et al."""
     fig = plt.figure()
-    axs: List[Axes] = fig.subplots(len(BURGERS_INT_LIST),1)
+    axs: List[Axes] = fig.subplots(1, len(BURGERS_INT_LIST))
     if len(BURGERS_INT_LIST) == 1:
         axs = [axs]
     fine_sol_imex = None
@@ -185,6 +187,7 @@ def nu_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: float,
               iterations: int, nu_vals: Iterable[float],
               tol: Optional[float], coarse_func: b_funcs.INT_FUNC_TYPE,
               plot_iters: Sequence[int]):
+    """Reproduce fig. 5,6 from Schmitt et al."""
     fig = plt.figure()
     axs: List[Axes] = fig.subplots(len(plot_iters),1)
     if len(plot_iters) == 1:
@@ -198,7 +201,7 @@ def nu_errors(t_range: Tuple[float, float], dt_fine: float, dt_coarse: float,
             true_sol = sol_func(t_grid, x_grid)
             
         print(f'nu={nu}:', 'Starting parareal solve')
-        iters_done = sol.solve(tolerance=tol, processors=5, print_ref=f'nu={nu}')
+        iters_done = sol.solve(tolerance=tol, processors=5, print_ref=f'nu={nu}', save_fine=False)
         sol.save_cache()
         for j, k in enumerate(plot_iters):
             # Check the solve didn't stop before reaching this iteration
@@ -222,6 +225,7 @@ def time_step_convergence(t_range: Tuple[float, float],
                           sol_func: Callable, q_func: Callable,
                           max_iterations: int, nu_vals: Iterable[float], tol: float,
                           coarse_int_funcs: Iterable[Tuple[b_funcs.INT_FUNC_TYPE, str]]):
+    """Reproduce table 3 from Schmitt et al."""
     output = ''
     output += f'{"nu":<6s} {"dT":<10s}  '
     for _, func_name in coarse_int_funcs:
@@ -233,7 +237,7 @@ def time_step_convergence(t_range: Tuple[float, float],
             output += f'{nu:<6} {dt_coarse:<10.2e}  '
             for coarse_func, func_name in coarse_int_funcs:
                 sol = BurgersParareal(t_range, dt_fine, dt_coarse, x_range, dx, sol_func, q_func, max_iterations, nu, coarse_func)
-                iters_taken = sol.solve(tol, 5, func_name)
+                iters_taken = sol.solve(tol, 5, func_name, False)
                 sol.save_cache()
                 num_text = f'{iters_taken:>3d}'
                 output += f'{num_text:<8s}  '
@@ -246,6 +250,7 @@ def nu_convergence(t_range: Tuple[float, float], dt_fine: float, dt_coarse: floa
                    sol_func: Callable, q_func: Callable,
                    max_iterations: int, nu_vals: Iterable[float], tol: float,
                    coarse_int_funcs: Iterable[Tuple[b_funcs.INT_FUNC_TYPE, str]]):
+    """Reproduce figs. 8 from Schmitt et al."""
     fig = plt.figure()
     ax: Axes = fig.subplots(1,1)
     for coarse_func, func_name in coarse_int_funcs:
@@ -268,6 +273,7 @@ def iteration_error(t_range: Tuple[float, float], dt_fine: float, dt_coarse: flo
                     x_range: Tuple[float, float], dx: float, sol_func: Callable,
                     q_func: Callable, coarse_int_func: b_funcs.INT_FUNC_TYPE, max_iterations: int,
                     nu: float, tol: Optional[float], name: Optional[str] = None):
+    """Does a parareal solve and returns the error after each iteration"""
     sol = BurgersParareal(t_range, dt_fine, dt_coarse, x_range, dx, sol_func, q_func,
                           max_iterations, nu, coarse_int_func)
     iters_complete = sol.solve(tol, 5, name, False)
@@ -284,8 +290,9 @@ def plot_error_change(t_range: Tuple[float, float], dt_fine: float, dt_coarse: f
                       sol_func: Callable, q_func: Callable,
                       max_iterations: int, nu_vals: Iterable[float], tol: Optional[float],
                       coarse_int_funcs: Sequence[Tuple[b_funcs.INT_FUNC_TYPE, str]]):
+    """Reproduce fig. 7 from Schmitt et al."""
     fig = plt.figure()
-    axs: List[Axes] = fig.subplots(len(coarse_int_funcs),1)
+    axs: List[Axes] = fig.subplots(1, len(coarse_int_funcs))
     if len(coarse_int_funcs) == 1:
         axs = [axs]
     for i, (coarse_int_func, name) in enumerate(coarse_int_funcs):
@@ -352,6 +359,6 @@ def benchmark2():
     #                   10, [0]+[10**x for x in range(-4,1)], B2_tolerance, ((burgers.burgers_SL, 'SL'), (burgers.burgers_imexRK, 'IMEX')))
     
 if __name__ == '__main__':
-    benchmark1()
-    # benchmark2()
+    # benchmark1()
+    benchmark2()
     

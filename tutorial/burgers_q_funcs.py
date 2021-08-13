@@ -2,7 +2,6 @@ import sympy as sp
 from sympy.core import Expr, Symbol
 import numpy as np
 from typing import Callable, Tuple
-from functools import lru_cache
 import inspect
 
 def _get_Q(u_sym: Expr, x_sym: Symbol, t_sym: Symbol, nu: Symbol, *args: Tuple[Symbol]) -> Callable:
@@ -19,6 +18,13 @@ def _fix_func_str(func_str: str):
     return func_str
 
 def get_funcs_source_code(u_sym: Expr, x_sym: Symbol, t_sym: Symbol, nu: Symbol, name: str, *args: Tuple[Symbol, str]):
+    """Print out the source code for the lambdified version of a sympy
+    expression and it's associated Q function.
+    
+    This is done because lambda functions cannot be pickled and so
+    sympy.lambdify generates a function that cannot be passed into
+    a multiprocessing pool.
+    """
     sym_args = []
     extra_args = ''
     for sym, sym_type in args:
@@ -54,8 +60,7 @@ def B2shift_sol(k_max: int, epsilon: float, t, x):
 def B2shift_q(k_max: int, epsilon: float, t, x, nu: float):
     return (-2.0*np.pi**2*epsilon*nu*(sum(k**2*np.sin(np.pi*k*(t - 2*x))/np.sinh(0.5*np.pi*epsilon*k) for k in range(1, k_max+1))) + 0.25*(sum(epsilon*np.sin(-np.pi*k*t + 2*np.pi*k*(x - 0.5) + np.pi*k)/np.sinh(0.5*np.pi*epsilon*k) for k in range(1, k_max+1)))*(sum(2*np.pi*epsilon*k*np.cos(-np.pi*k*t + 2*np.pi*k*(x - 0.5) + np.pi*k)/np.sinh(0.5*np.pi*epsilon*k) for k in range(1, k_max+1))) + 0.5*(sum(-np.pi*epsilon*k*np.cos(-np.pi*k*t + 2*np.pi*k*(x - 0.5) + np.pi*k)/np.sinh(0.5*np.pi*epsilon*k) for k in range(1, k_max+1))))
 
-
-if __name__ == '__main__':
+def main():
     x = sp.Symbol('x')
     t = sp.Symbol('t')
     nu = sp.Symbol('nu')
@@ -70,3 +75,6 @@ if __name__ == '__main__':
     summed_func = sp.sin(2*sp.pi*k*x - sp.pi*k*t + sp.pi*k)*phi
     u_sol_B2 = 1/2*sp.Sum(summed_func, (k, 1, k_max))
     get_funcs_source_code(u_sol_B2, x, t, nu, 'B2', (k_max, 'int'), (epsilon, 'float'))
+
+if __name__ == '__main__':
+    main()

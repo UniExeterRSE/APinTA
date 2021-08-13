@@ -331,6 +331,8 @@ class _PRanimationAdaptive(_PRanimation):
         self.n_fine_steps = round(np.mean(fine_lens))
         print(self.n_fine_steps, fine_lens)
         
+        
+# Add Adaptive mixin to 2d and 3d classes to create adaptive versions
 class PRanimationAdaptive3D(PRanimation3D, _PRanimationAdaptive):
     __doc__ = _PRanimation.__doc__
     pass
