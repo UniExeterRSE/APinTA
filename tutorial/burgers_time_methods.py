@@ -349,14 +349,14 @@ def benchmark2():
     
     B2_dt_fine = 1e-5 # 1e-6
     B2_dt_coarse = 1e-2
-    B2_dx = 1/100 # 1/256
+    B2_dx = 1/256
     B2_tolerance = 1e-6
     
     nu_vals = [0.0001*x for x in range(1, 10)] + [0.001*x for x in range(1, 11)]
-    nu_convergence(t_range, B2_dt_fine, B2_dt_coarse, x_range, B2_dx, sol_func, Q_func,
-                   20, nu_vals, B2_tolerance, ((burgers.burgers_SL, 'SL'), (burgers.burgers_imexRK, 'IMEX')))
-    # plot_error_change(t_range, B2_dt_fine, B2_dt_coarse, x_range, B2_dx, sol_func, Q_func,
-    #                   10, [0]+[10**x for x in range(-4,1)], B2_tolerance, ((burgers.burgers_SL, 'SL'), (burgers.burgers_imexRK, 'IMEX')))
+    # nu_convergence(t_range, B2_dt_fine, B2_dt_coarse, x_range, B2_dx, sol_func, Q_func,
+    #                20, nu_vals, B2_tolerance, ((burgers.burgers_SL, 'SL'), (burgers.burgers_imexRK, 'IMEX')))
+    plot_error_change(t_range, B2_dt_fine, B2_dt_coarse, x_range, B2_dx, sol_func, Q_func,
+                      10, [0]+[10**x for x in range(-4,1)], B2_tolerance, ((burgers.burgers_SL, 'SL'), (burgers.burgers_imexRK, 'IMEX')))
     
 if __name__ == '__main__':
     # benchmark1()

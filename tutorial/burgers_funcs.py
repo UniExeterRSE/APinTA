@@ -1,13 +1,21 @@
 from typing import Callable
+import sys
 import numpy as np
 import scipy.optimize as optimize
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 
 PLOT_ITERATION = False
-INT_FUNC_TYPE = Callable[
-    [np.ndarray, float, float, float, np.ndarray, np.ndarray, float, Callable],
-    np.ndarray]
+if sys.version_info >= (3, 8):
+    from typing import Protocol
+    class INT_FUNC_TYPE(Protocol):
+        def __call__(self, u_n: np.ndarray, dt: float, dx: float, nu: float, /,
+                    u_nminus: np.ndarray, x_vals: np.ndarray,
+                    t: float = None, Q_func: Callable = None) -> np.ndarray: ...
+else:
+    INT_FUNC_TYPE = Callable[
+        [np.ndarray, float, float, float, np.ndarray, np.ndarray, float, Callable],
+        np.ndarray]
 
 def _u_dudx(u, dx):
     u_iplus = np.roll(u, -1)
