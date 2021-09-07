@@ -448,7 +448,13 @@ Building Firedrake on Isca with the Intel compilers is not currently working bec
 \section{Profiling Firedrake}
 \label{section:profiling_firedrake}
 
-It's not clear how to use Cray PAT with python applications (including Firedrake) as the profiler needs to instrument the executable. Loading the perftools-lite module and using the python from the cray-python module does not produce any profiling output.
+All three tools suites previously discussed can be used to profile Firedrake, however some modifications to usage are required which are described below.
+
+%-----------------------------
+
+\subsection{Intel Trace Analyzer and Collector}
+
+ITAC was previously used on Isca with the Intel toolchain (before the requirement for newer compilers). Tracing can be enabled by adding the \verb+-trace+ flag to the mpirun command which enables Firedrake to be profiled without any modifications to the build. 
 
 %-----------------------------
 
@@ -479,19 +485,20 @@ In the main thread stacks pane we see where the most time is spent broken down b
 
 %-----------------------------
 
-\subsection{Intel Trace Analyzer and Collector}
+\subsection{Cray PAT}
 
-ITAC was previously used on Isca with the Intel toolchain (before the requirement for newer compilers). Tracing can be enabled by adding the \verb+-trace+ flag to the mpirun command which enables Firedrake to be profiled without any modifications to the build. 
+Dynamically linked executables can be profiled by adding a \verb+pat_run+ command before the executable. For Firedrake this requires adding \verb+pat_run+ before the \verb+python+ command and appending the full path to the \verb+python+ executable e.g.
 
+\textbf{Also mention loading pre-load module to avoid runtime warning}
+
+\textbf{Add results from /home/ex-dmacreman/fd test/DG big PAT as proof of concept}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Conclusions and recommendations}
+\section{Conclusions}
 \label{section:conclusions}
 
-Carry out initial performance studies using Firedrake for rapid prototyping. Use ARM Forge to profile Firedrake on Isambard which enables profiling up to the 20\,992 cores. Once the scalability of the algorithm has been established on Isambard implement the algorithm in FRric and run on Archer-2 with profiling using Cray PAT. This will enable performance studies beyond 20\,000 cores.
-
-The build with the Intel toolchain could potentially be fixed by installing newer versions of the compilers which are now available for free download. This would enable the ITAC profiler to be used on Isca.
+The build with the Intel toolchain could potentially be fixed by installing newer versions of the compilers which are now available for free download. This would enable the ITAC profiler to be used on Isca. However Isambard is a more suitable platform for the development work required for the project. Isambard has a shorter maximum wall time than Isca which allows for faster turnaround of multi-node jobs which benefits the workflows required for this project. Profiling on Isambard can use either the ARM Forge tools or the Cray PAT tools, and the tools have complimentary strengths. The ARM tools can profile to the level of individual lines of source code; the Cray tools can generate heat map plots of MPI traffic and load imbalance for specific MPI calls. When scaling up runs for Archer the Cray PAT tools provide shared profiling tool between Isambard and Archer. 
 
 \pagebreak
 
