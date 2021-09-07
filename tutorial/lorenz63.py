@@ -63,7 +63,6 @@ def run_lorenz_scipy(dt,T):
     t = np.arange(0,T,dt)
     x_t = np.asarray([integrate.solve_ivp(lorenz63_,(0,T),i,t_eval=t).y for i in xi])
     #x_t = np.asarray([integrate.RK45(lorenz63,(0,T),i,t_eval=t).y for i in xi])
-    print(x_t.shape)
     return t, x_t 
 
 def run_lorenz_euler(dt,T):

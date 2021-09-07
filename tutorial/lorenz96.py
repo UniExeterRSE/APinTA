@@ -23,7 +23,7 @@ class Lorenz96(object):
         if self.nlevels == 1:
             assert(K is not None), 'Need to set K value'
             assert(F is not None), 'Need to set F value'
-         
+
         if self.nlevels == 2:
             assert(K is not None), 'Need to set K value'
             assert(F is not None), 'Need to set F value'
@@ -45,12 +45,11 @@ class Lorenz96(object):
             assert(g is not None), 'Need to set g value'
             assert(e is not None), 'Need to set e value'
             assert(d is not None), 'Need to set d value'
-
-
+        
         if X0 is not None:
              self._X = X0.copy()
         else:
-             self._X = np.random.normal(loc=0,scale = 1, size=K)
+             self._X = np.random.normal(loc=0,scale = 1, size=(K))
         if Y0 is not None:
              self._Y = X0.copy()
         else:
@@ -59,7 +58,7 @@ class Lorenz96(object):
              self._Z = Z0.copy()
         else:
              self._Z = np.random.normal(loc=0,scale = 0.05, size=(K,J,I))
-              
+
         self.h = h
         self.g = g
         self.F = F
@@ -89,7 +88,17 @@ class Lorenz96(object):
         """
         return self._Z
     
-        
+    def _rk4_step(self,dt, x,f, **f_kwargs):
+        """
+        A single timestep using RK4
+        """
+        x1 = f(x, **f_kwargs)  
+        x2 = f(x+x1*dt/2.0, **f_kwargs)
+        x3 = f(x+x2*dt/2.0, **f_kwargs)
+        x4 = f(x+x3*dt, **f_kwargs)
+        x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
+        return x_n
+         
     def rk4_step(self,dt, A):
         """
         A single timestep using RK4
@@ -154,7 +163,8 @@ class Lorenz96(object):
         elif self.nlevels == 3:
             X_next, Y_next, Z_next = self._l96_three(X,Y,Z) 
          
-        return X_next, Y_next, Z_next 
+        return [X_next, Y_next, Z_next] 
+
 
 def plot_l96(X,Y,Z):
     """
@@ -165,11 +175,8 @@ def plot_l96(X,Y,Z):
     #fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
     fig, axs = plt.subplots(3,figsize=(10,8)) 
     X_xpoints = np.arange(0,X.shape[0],1)
-    Y_xpoints = np.arange(0,X.shape[0],1/Y.shape[-1])
-    Z_xpoints = np.arange(0,X.shape[0],1/Y.shape[-1]/Z.shape[-1])
-    print(X_xpoints, X_xpoints.shape)
-    print(Y_xpoints,Y_xpoints.shape)
-    print(Z_xpoints,Z_xpoints.shape)
+    Y_xpoints = np.arange(0,X.shape[0],1/Y.shape[-2])
+    Z_xpoints = np.arange(0,X.shape[0],1/Y.shape[-2]/Z.shape[-1])
     #for i in range(nvars):
     #    axs[i].plot(X[:,i])
     #    #axs[i].plot(Y[:,0, i])
@@ -178,11 +185,9 @@ def plot_l96(X,Y,Z):
     #plt.show()
     for i in range(nvars):
         fig, axs = plt.subplots(3,figsize=(10,8)) 
-        axs[0].plot(X_xpoints, X[:,i])
-        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:]))
+        axs[0].plot(X_xpoints, X[:,i,0,0])
+        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]))
         axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]))
-        #axs[i].plot(Y[:,0, i])
-        #axs[i].plot(Z[:,0, 0, i])
         plt.suptitle('X,Y,Z variables')
         plt.show()
 
@@ -206,13 +211,13 @@ def main():
     npoints = 10000
     t_start, t_end = 0,10
     dt = (t_end - t_start)/npoints 
-    X_out = np.zeros((npoints, K))
-    Y_out = np.zeros((npoints, K, J))
+    X_out = np.zeros((npoints, K, 1, 1))
+    Y_out = np.zeros((npoints, K, J, 1))
     Z_out = np.zeros((npoints, K, J, I))
     for i in range(npoints):
         x_,y_,z_ = L96.rk4_step(dt,[x,y,z])
-        X_out[i,:] = x_
-        Y_out[i,:] = y_
+        X_out[i,:] = x_[:,None,None]
+        Y_out[i,:] = y_[:,:,None]
         Z_out[i,:] = z_
         x,y,z = x_,y_,z_
     plot_l96(X_out, Y_out, Z_out)

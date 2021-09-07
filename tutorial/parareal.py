@@ -5,23 +5,22 @@ class Parareal():
     Parallel-in-time algorithm
     """
 
-    def __init__(self, integrator='rk4'):
+    def __init__(self, integrator):
         """
-                """
-        integrators = {'rk4':self._rk4_step}
-        self.solver = integrators[integrator]
+        """
+        self.solver = integrator
 
-    def _rk4_step(self,dt, x,f, **f_kwargs):
-        """
-        A single timestep using RK4
-        """
-        x1 = f(x, **f_kwargs)  
+   # def _rk4_step(self,dt, x,f, **f_kwargs):
+   #     """
+   #     A single timestep using RK4
+   #     """
+   #     x1 = f(x, **f_kwargs)  
 
-        x2 = f(x+x1*dt/2.0, **f_kwargs)
-        x3 = f(x+x2*dt/2.0, **f_kwargs)
-        x4 = f(x+x3*dt, **f_kwargs)
-        x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
-        return x_n
+   #     x2 = f(x+x1*dt/2.0, **f_kwargs)
+   #     x3 = f(x+x2*dt/2.0, **f_kwargs)
+   #     x4 = f(x+x3*dt, **f_kwargs)
+   #     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
+   #     return x_n
      
     def integratorStep(self,I,deltat,y0, f, **f_kwargs):
         """
