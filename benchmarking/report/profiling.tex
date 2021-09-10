@@ -6,7 +6,8 @@
 \usepackage{geometry}
 \geometry{left=3.0truecm,right=3.0truecm,top=3.0truecm,bottom=3.0truecm} 
 
-\author{David Acreman}
+\author{}
+\date{}
 \title{Profiling Firedrake for the APinTA-PDEs project}
 
 \begin{document}
@@ -205,7 +206,7 @@ The run time is now significantly reduced (108 seconds vs. 250 seconds) and the 
 \label{fig:test4_ITAC_summary}
 \end{center}
 \end{figure}
-The summary page shows a large fraction of time spent in v\verb+MPI_Recv+ (24.8\%) due to the manager process waiting to hand out work to worker processes. In this test there are only 4~MPI processes so this constitutes a large fraction of the total run time. The time line shows the worker processes (processes 1--3) completing together with negligible time spent in the final \verb+MPI_Barrier+. The communication in this version of the program takes place with a large number of point-to-point operations instead of a single collective operation and the time line shows black lines connecting processes when they communicate. The lower right panel of the bottom figure is a message profile which shows which processes communicate using point-to-point operations (To view the message profile select: \texttt{Charts} $\rightarrow$ \texttt{message profile}). In the manager-worker pattern all the workers communicate only with the manger process so the communcation is seen in the first row and first column of the message profile diagram. \\
+The summary page shows a large fraction of time spent in \verb+MPI_Recv+ (24.8\%) due to the manager process waiting to hand out work to worker processes. In this test there are only 4~MPI processes so this constitutes a large fraction of the total run time. The time line shows the worker processes (processes 1--3) completing together with negligible time spent in the final \verb+MPI_Barrier+. The communication in this version of the program takes place with a large number of point-to-point operations instead of a single collective operation and the time line shows black lines connecting processes when they communicate. The lower right panel of the bottom figure is a message profile which shows which processes communicate using point-to-point operations (To view the message profile select: \texttt{Charts} $\rightarrow$ \texttt{message profile}). In the manager-worker pattern all the workers communicate only with the manger process so the communcation is seen in the first row and first column of the message profile diagram. \\
 
 \noindent
 \textbf{Test 5:} this test uses version 3 of the Mandelbrot program (manager-worker) as for the previous test but uses 16~MPI processes instead of 4~MPI processes. The time spent in \verb+MPI_Reduce+ is now much smaller (6.24\%) consistent with slightly less than $1/16$ of the run time (i.e. one manager process out of a total of 16~processes). 
@@ -345,7 +346,7 @@ Output from profiling test 5 is shown in figure~\ref{fig:MAP_test5} (this time a
 \label{fig:MAP_test5}
 \end{center}
 \end{figure}
-The MPI sent and MPI received time lines show the number of bytes per second passed to MPI send and receive functions respectively. These plots show higher levels of activity at the beginning and end of the calculation when the workers are completing work units more rapidly. At the end of the application we see some time spent in a collective which transfers no data and this is the \verb+MPI\_Barrier+ at the end of the program.
+The MPI sent and MPI received time lines show the number of bytes per second passed to MPI send and receive functions respectively. These plots show higher levels of activity at the beginning and end of the calculation when the workers are completing work units more rapidly. At the end of the application we see some time spent in a collective which transfers no data and this is the \verb+MPI_Barrier+ at the end of the program.
 
 \pagebreak
 
@@ -365,7 +366,7 @@ WARNING: PerfTools is saving object files from a temporary directory into direct
 INFO: creating the PerfTools-instrumented executable 'mandelbrot' (lite-samples) ...OK
 \end{verbatim}
 When the \verb+cc+ wrapper script is run it reports that that PerfTools is instrumenting the executable as expected.
-The job can then be submitted to the queue using an unmodified job script (the \texttt{perftool-base} module is loaded as part of the programming environment and does not need to be explicitly loaded in the job script). When the job runs profiling information is written into a new directory (e.g. \verb+mandelbrot+10863-42s+) with a summary written to the stdout file (see Appendix A for example output). There is a graphical interface called ``Apprentice 2'' which can be used to view the output in the profiling directory e.g. 
+The job can then be submitted to the queue using an unmodified job script (the \texttt{perftool-base} module is loaded as part of the programming environment and does not need to be explicitly loaded in the job script). When the job runs profiling information is written into a new directory (e.g. \verb|mandelbrot+10863-42s|) with a summary written to the stdout file (see Appendix A for example output). There is a graphical interface called ``Apprentice 2'' which can be used to view the output in the profiling directory e.g. 
 \begin{verbatim}
 > app2 mandelbrot+10863-42s &
 \end{verbatim}
@@ -394,7 +395,7 @@ The activity window (see figure~\ref{fig:app2_activity}) shows a histogram of ac
 \label{fig:app2_activity}
 \end{center}
 \end{figure}
-If a full trace is requested then the activity window can switch to a timeline view but this is not available with \texttt{perftools-lite}.
+If a full trace is requested then the activity window can switch to a timeline view but this is not available with \texttt{perftools-lite} (displaying a time line requires storing all samples rather than aggregating the number of samples for a particular function).
 
 The full version of the profiler has many more capabilities than \texttt{perftools-lite} including viewing a time line and measuring load imbalance. To use the full capabilities of the profiler the executable is build using the \verb+pat_build+ command, the executable is run, and the profiling information generated is processed using the \verb+pat_report+ command. One feature of particular interest to the project is the ability to re-order MPI ranks to minimise network traffic by placing frequently communicating processes on the same node which could be of particular relevance when combining spatial and temporal decompositions. 
 
@@ -405,9 +406,9 @@ The full version of the profiler has many more capabilities than \texttt{perftoo
 \section{Builds}
 \label{section:builds}
 
-There are three primary HPC platforms for the project: Isca, Isambard, Archer-2. Work on the ARCHER-2 build of Firedrake is supported by an Archer-2 eCSE project (ARCHER2-eCSE04-5 PI: Dr David A Ham (Imperial College) ``Scalable and robust Firedrake deployment on ARCHER2 and beyond'') and will not be considered further here to avoid duplication of effort.
+There are three primary HPC platforms for the project: Isca, Isambard and Archer-2. Work on the ARCHER-2 build of Firedrake is supported by an Archer-2 eCSE project (ARCHER2-eCSE04-5 PI: Dr David A Ham (Imperial College) ``Scalable and robust Firedrake deployment on ARCHER2 and beyond'') and will not be considered further here to avoid duplication of effort.
 
-For each target platform there is a build using the reference BLAS/Lapack implementation (fblaslapack) and optimised builds which use optimised maths libraries appropriate for the platform. The status of the builds is shown in table~\ref{table:build_status}
+For each target platform there is a build using the reference BLAS/Lapack implementation (fblaslapack) and optimised builds which use optimised maths libraries appropriate for the platform. The status of the builds is shown in table~\ref{table:build_status}.
 %
 \begin{table}[htp]
 \begin{center}
@@ -454,7 +455,7 @@ All three tools suites previously discussed can be used to profile Firedrake, ho
 
 \subsection{Intel Trace Analyzer and Collector}
 
-ITAC was previously used on Isca with the Intel toolchain (before the requirement for newer compilers). Tracing can be enabled by adding the \verb+-trace+ flag to the mpirun command which enables Firedrake to be profiled without any modifications to the build. 
+ITAC was previously used on Isca with the Intel toolchain (before the requirement for newer compilers). Tracing can be enabled by adding the \verb+-trace+ flag to the \verb+mpirun+ command which enables Firedrake to be profiled without any modifications to the build. 
 
 %-----------------------------
 
@@ -487,11 +488,35 @@ In the main thread stacks pane we see where the most time is spent broken down b
 
 \subsection{Cray PAT}
 
-Dynamically linked executables can be profiled by adding a \verb+pat_run+ command before the executable. For Firedrake this requires adding \verb+pat_run+ before the \verb+python+ command and appending the full path to the \verb+python+ executable e.g.
+Dynamically linked executables can be profiled with Cray PAT by adding the \verb+pat_run+ command before the executable. For Firedrake this requires adding \verb+pat_run+ before the \verb+python+ command and appending the full path to the \verb+python+ executable e.g.
+\begin{verbatim}
+aprun -b -j 1 -n ${nprocs} pat_run ${python_with_path} ${myScript}
+\end{verbatim}
+The only other change to job script is to add 
+\begin{verbatim}
+module load perftools-preload
+\end{verbatim}
+after the other module load commands to avoid a run-time warning.
 
-\textbf{Also mention loading pre-load module to avoid runtime warning}
-
-\textbf{Add results from /home/ex-dmacreman/fd test/DG big PAT as proof of concept}
+Two plots from profiling the Firedrake DG advection example are shown as proof of concept: figure~\ref{fig:DG_PAT_pie} shows the pie chart of samples indicating where the program spent its time, and figure~\ref{fig:DG_PAT_heatmap} shows a heat map of the MPI point-to-point communication.
+%
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/DG_PAT1}
+\caption{Cray PAT samples pie chart for the Firedrake DG example}
+\label{fig:DG_PAT_pie}
+\end{center}
+\end{figure}
+%
+\begin{figure}[htbp]
+\begin{center}
+\includegraphics[scale=0.3]{figures/DG_PAT2}
+\caption{MPI point-to-point heat map for the Firedrake DG example}
+\label{fig:DG_PAT_heatmap}
+\end{center}
+\end{figure}
+Cray PAT does not provide the same level of line-by-line information as ARM MAP but can show MPI communication patterns (e.g. figure~\ref{fig:DG_PAT_heatmap})
+providing complimentary information.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
