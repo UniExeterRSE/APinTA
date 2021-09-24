@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import repeat, chain
 
 class Lorenz96(object):
     def __init__(self, K=1,J=1,I=1,nlevels=1,h=None,g=None,
@@ -191,7 +192,45 @@ def plot_l96(X,Y,Z):
         plt.suptitle('X,Y,Z variables')
         plt.show()
 
-    
+def plot_l96_list(X,Y,Z):
+    """
+    Plot X,Y,Z variables
+    """
+    #nvars = len(X[0])
+    #print(nvars)
+    ##fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
+    #fig, axs = plt.subplots(3,figsize=(10,8)) 
+    #X_xpoints = np.arange(0,len(X),1)
+    #Y_xpoints = np.arange(0,len(X),1/len(Y[0][0]))
+    #Z_xpoints = np.arange(0,len(X),1/len(Y[0][0])/len(Z[0][0]))
+    #print(X_xpoints.shape, Y_xpoints.shape, Z_xpoints.shape)
+    #print(len(X[0])) 
+    #for i in range(nvars):
+    #    fig, axs = plt.subplots(3,figsize=(10,8)) 
+    #    axs[0].plot(X_xpoints, list(chain(X[:][i])))
+    #    axs[1].plot(Y_xpoints, list(chain(Y[:][i][:])))
+    #    axs[2].plot(Z_xpoints, list(chain(Z[:][i][:][:])))
+    #    plt.suptitle('X,Y,Z variables')
+    #    plt.show()
+    X = np.array(X)
+    Y = np.array(Y)
+    Z = np.array(Z)
+
+    nvars = X.shape[-1]
+    nrows, ncols = 4, 1 #nvars//2
+    #fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
+    X_xpoints = np.arange(0,X.shape[0],1)
+    Y_xpoints = np.arange(0,X.shape[0],1/Y.shape[-1])
+    Z_xpoints = np.arange(0,X.shape[0],1/Y.shape[-1]/Z.shape[-1])
+    for i in range(nvars):
+        fig, axs = plt.subplots(3,figsize=(10,8)) 
+        axs[0].plot(X_xpoints, X[:,i])
+        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:]))
+        axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]))
+        plt.suptitle('X,Y,Z variables')
+        plt.show()
+
+   
 def main():
     """
     """
@@ -214,13 +253,23 @@ def main():
     X_out = np.zeros((npoints, K, 1, 1))
     Y_out = np.zeros((npoints, K, J, 1))
     Z_out = np.zeros((npoints, K, J, I))
+    X_out_list = [[None]*K]*npoints
+    Y_out_list = [[[None]*J]*K]*npoints
+    Z_out_list = [[[[None]*I]*J]*K]*npoints
+    Z_out_arr = np.array(Z_out_list)
+    Y_out_arr = np.array(Y_out_list)
+    X_out_arr = np.array(X_out_list)
     for i in range(npoints):
         x_,y_,z_ = L96.rk4_step(dt,[x,y,z])
-        X_out[i,:] = x_[:,None,None]
-        Y_out[i,:] = y_[:,:,None]
-        Z_out[i,:] = z_
+        #X_out[i,:] = x_[:,None,None]
+        #Y_out[i,:] = y_[:,:,None]
+        #Z_out[i,:] = z_
+        X_out_list[i] = x_.copy()
+        Y_out_list[i] = y_.copy()
+        Z_out_list[i] = z_.copy()
         x,y,z = x_,y_,z_
-    plot_l96(X_out, Y_out, Z_out)
+    #plot_l96(X_out, Y_out, Z_out)
+    plot_l96_list(X_out_list, Y_out_list, Z_out_list)
     
 if __name__ == "__main__":
     main()

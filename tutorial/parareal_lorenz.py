@@ -19,7 +19,7 @@ def lorenz63(xin,sigma=10,beta=8/3,rho=28):
     zdot = x*y - beta*z
     return np.array([xdot, ydot, zdot])
  
-def rk4_step(self,dt, x, f, **f_kwargs):
+def rk4_step(dt, x, f, **f_kwargs):
     """
     A single timestep for function f using RK4
     """
@@ -31,26 +31,27 @@ def rk4_step(self,dt, x, f, **f_kwargs):
     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
     return x_n
      
-def rk4_step(self,dt, x, f, **f_kwargs):
-    """
-    A single timestep using RK4
-    """
-    x,y,z = x
-    x1,y1,z1 = f(x,y,z)  
-
-    x2,y2,z2 = f(x+x1*dt/2.0,
-            y + y1*dt/2.0,
-            z + z1*dt/2.0)
-    x3,y3,z3 = f(x+x2*dt/2.0,
-            y + y2*dt/2.0,
-            z + z2*dt/2.0)
-    x4,y4,z4 = f(x+x3*dt/2.0,
-            y + y3*dt/2.0,
-            z + z3*dt/2.0)
-    x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
-    y_n = y + dt*(y1 + 2*y2 + 2*y3 + y4)/6.0
-    z_n = z + dt*(z1 + 2*z2 + 2*z3 + z4)/6.0
-    return x_n, y_n, z_n
+#def rk4_step(dt, x, f, **f_kwargs):
+#    """
+#    A single timestep using RK4
+#    """
+#    print(dt,x,f)
+#    x,y,z = x
+#    x1,y1,z1 = f(x,y,z)  
+#
+#    x2,y2,z2 = f(x+x1*dt/2.0,
+#            y + y1*dt/2.0,
+#            z + z1*dt/2.0)
+#    x3,y3,z3 = f(x+x2*dt/2.0,
+#            y + y2*dt/2.0,
+#            z + z2*dt/2.0)
+#    x4,y4,z4 = f(x+x3*dt/2.0,
+#            y + y3*dt/2.0,
+#            z + z3*dt/2.0)
+#    x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
+#    y_n = y + dt*(y1 + 2*y2 + 2*y3 + y4)/6.0
+#    z_n = z + dt*(z1 + 2*z2 + 2*z3 + z4)/6.0
+#    return x_n, y_n, z_n
     
 def plot_l96(X,Y,Z):
     """
@@ -158,7 +159,6 @@ def main_l63():
     xG = np.linspace(a,b,nG+1)
     deltaG = (b-a)/nG
     # yG shape (n_samples, n_vars)
-    yG = l63_init(y0,nG) 
     #print(yG.shape)
     xF = np.zeros((nG, int(nF/nG)+1))
     for i in range(nG):
@@ -168,19 +168,19 @@ def main_l63():
     deltaF = xF[0,1] - xF[0,0]
     f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
     pr = para.Parareal(rk4_step)
-    yG_correct, correction = pr.parareal(y0, nG, nF, yG, deltaG, deltaF, K, lorenz63, **f_kwargs)
-    #print(yG_correct)
+    yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, lorenz63, **f_kwargs)
     #print(yG_correct.shape)
-    #print(correction.shape)
+    print(yG_correct.shape)
+    print(correction.shape)
     
     for i in range(K):
         ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
-        ax1.plot(xG[1:], yG_correct[1:,0,i], '-o', lw=1.5, label="x")
-        ax2.plot(xG[1:], yG_correct[1:,1,i], '-o', lw=1.5, label="y")
-        ax3.plot(xG[1:], yG_correct[1:,2,i], '-o', lw=1.5, label="z")
-        ax1.plot(xG[1:], correction[:-1,0,-1,i], '-o', lw=1.5, label="x corr")
-        ax2.plot(xG[1:], correction[:-1,1,-1,i], '-o', lw=1.5, label="y corr")
-        ax3.plot(xG[1:], correction[:-1,2,-1,i], '-o', lw=1.5, label="z corr")
+        ax1.plot(xG[1:], yG_correct[1:,i,0], '-o', lw=1.5, label="x")
+        ax2.plot(xG[1:], yG_correct[1:,i,1], '-o', lw=1.5, label="y")
+        ax3.plot(xG[1:], yG_correct[1:,i,2], '-o', lw=1.5, label="z")
+        ax1.plot(xG[1:], correction[:,i,-1,0], '-o', lw=1.5, label="x corr")
+        ax2.plot(xG[1:], correction[:,i,-1,1], '-o', lw=1.5, label="y corr")
+        ax3.plot(xG[1:], correction[:,i,-1,2], '-o', lw=1.5, label="z corr")
         ax1.set_ylabel("X")
         ax2.set_ylabel("Y")
         ax3.set_ylabel("Z")
@@ -194,9 +194,9 @@ def main_l63():
 
     for i in range(K):
         ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
-        ax1.plot(xG[1:], yG_correct[1:,0,i]-correction[:-1,0,-1,i], '-o', lw=1.5, label="x")
-        ax2.plot(xG[1:], yG_correct[1:,1,i]-correction[:-1,1,-1,i], '-o', lw=1.5, label="y")
-        ax3.plot(xG[1:], yG_correct[1:,2,i]-correction[:-1,2,-1,i], '-o', lw=1.5, label="z")
+        ax1.plot(xG[1:], yG_correct[1:,i,0]-correction[:,i,-1,0], '-o', lw=1.5, label="x")
+        ax2.plot(xG[1:], yG_correct[1:,i,1]-correction[:,i,-1,1], '-o', lw=1.5, label="y")
+        ax3.plot(xG[1:], yG_correct[1:,i,2]-correction[:,i,-1,2], '-o', lw=1.5, label="z")
         ax1.set_ylabel("X")
         ax2.set_ylabel("Y")
         ax3.set_ylabel("Z")
