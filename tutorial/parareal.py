@@ -40,24 +40,17 @@ class Parareal():
         K number of parallel iterations
         f function being integrated  
         """
-        nvars = len(y0) 
         y0 = np.array(y0)
-        yG = np.empty((nG+1,K,nvars)) 
-        #yG = np.zeros((yG_in.shape)+(K,))
-        # yG shampe now n_samples, n_vars, K )
-        #yG[0,...] = np.array([i * np.ones(K) for i in y0])
-        y0_repeat = y0.reshape((1,nvars)).repeat(K,0)
-        yG[0,:] = y0_repeat
+        y0_extend = y0.reshape((1,1,)+y0.shape)
+        yG_init = y0_extend.repeat(K,1)
+        yG = np.empty(((nG+1,K,)+(y0.shape))) 
+        yG[0] = yG_init[0]
         # Initial coarse run through 
         for i in range(1,nG+1):
             yG[i,0,...] = self.integratorStep(self.solver, deltaG, yG[i-1,0,...], f, **f_kwargs)
         yG_correct = yG.copy()
-        #correction = np.zeros((nG,int(nF/nG)+1,K))
-        #correction = np.zeros((yG_in.shape)+(int(nF/nG)+1,K))
-        #correction[0,...,0,:] = np.array([i * np.ones(K) for i in y0])
-        correction = np.empty((nG,K,int(nF/nG)+1,nvars))
-        correction[0,:,0,...] = y0_repeat 
-        
+        correction = np.empty(((nG,K,int(nF/nG)+1,)+(y0.shape)))
+        correction[0,:,0,...] = yG_init[0,:] 
 
         for k in range(1,K):
             #run fine integrator in parallel for each k interation

@@ -94,19 +94,13 @@ def main_l96():
     y0 = [5,-5,20]
     xG = np.linspace(a,b,nG+1)
     deltaG = (b-a)/nG
-    # yG shape (n_samples, n_vars)
-    yG = l63_init(y0,nG) 
-    #print(yG.shape)
     xF = np.zeros((nG, int(nF/nG)+1))
     for i in range(nG):
         left,right = xG[i], xG[i+1]
         xF[i,:] = np.linspace(left,right,int(nF/nG)+1) 
      
     deltaF = xF[0,1] - xF[0,0]
-    f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
-    pr = para.Parareal(rk4_step)
-    yG_correct, correction = pr.parareal(y0, nG, nF, yG, deltaG, deltaF, K, lorenz63, **f_kwargs)
- 
+    #f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
     K_lorenz = 8 
     J_lorenz = 10 
     I_lorenz = 10 
@@ -117,7 +111,10 @@ def main_l96():
     
     #L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
     #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
-    L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+    L96 = Lorenz96(K=K_lorenz,J=J_lorenz,I=I_lorenz,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+    # x.shape = (K)
+    # y.shape = (K,J)
+    # z.shape = (K,J,I)
     x,y,z = L96.X_coord, L96.Y_coord, L96.Z_coord
     npoints = 10000
     t_start, t_end = 0,10
@@ -125,6 +122,10 @@ def main_l96():
     X_out = np.zeros((npoints, K, 1, 1))
     Y_out = np.zeros((npoints, K, J, 1))
     Z_out = np.zeros((npoints, K, J, I))
+
+    pr = para.Parareal(rk4_step)
+    yG_correct, correction = pr.parareal(y0, nG, nF, yG, deltaG, deltaF, K, lorenz63, **f_kwargs)
+ 
     for i in range(npoints):
         x_,y_,z_ = L96.rk4_step(dt,[x,y,z])
         X_out[i,:] = x_[:,None,None]
