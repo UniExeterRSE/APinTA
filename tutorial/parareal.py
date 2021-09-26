@@ -30,7 +30,7 @@ class Parareal():
         y = I(deltat, y0, f, **f_kwargs)
         return y
 
-    def parareal(self, y0, nG, nF, deltaG, deltaF, K, f, **f_kwargs):
+    def parareal(self, y0_in, nG, nF, deltaG, deltaF, K, f, **f_kwargs):
         """
         Parareal calculation
         nG coarse grid points
@@ -40,7 +40,8 @@ class Parareal():
         K number of parallel iterations
         f function being integrated  
         """
-        y0 = np.array(y0)
+        print(type(y0_in))
+        y0 = np.array(y0_in)
         y0_extend = y0.reshape((1,1,)+y0.shape)
         yG_init = y0_extend.repeat(K,1)
         yG = np.empty(((nG+1,K,)+(y0.shape))) 

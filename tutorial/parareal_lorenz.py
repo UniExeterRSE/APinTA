@@ -30,7 +30,28 @@ def rk4_step(dt, x, f, **f_kwargs):
     x4 = f(x+x3*dt, **f_kwargs)
     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
     return x_n
-     
+
+def rk4_step_l96(dt, A, f, **f_kwargs):
+    """
+    A single timestep using RK4
+    """
+    x,y,z = A
+    x1,y1,z1 = f(x,y,z)  
+
+    x2,y2,z2 = f(x+x1*dt/2.0,
+            y + y1*dt/2.0,
+            z + z1*dt/2.0)
+    x3,y3,z3 = f(x+x2*dt/2.0,
+            y + y2*dt/2.0,
+            z + z2*dt/2.0)
+    x4,y4,z4 = f(x+x3*dt/2.0,
+            y + y3*dt/2.0,
+            z + z3*dt/2.0)
+    x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
+    y_n = y + dt*(y1 + 2*y2 + 2*y3 + y4)/6.0
+    z_n = z + dt*(z1 + 2*z2 + 2*z3 + z4)/6.0
+    return x_n, y_n, z_n
+
 #def rk4_step(dt, x, f, **f_kwargs):
 #    """
 #    A single timestep using RK4
@@ -100,7 +121,7 @@ def main_l96():
         xF[i,:] = np.linspace(left,right,int(nF/nG)+1) 
      
     deltaF = xF[0,1] - xF[0,0]
-    #f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
+    f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
     K_lorenz = 8 
     J_lorenz = 10 
     I_lorenz = 10 
@@ -111,27 +132,20 @@ def main_l96():
     
     #L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
     #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
-    L96 = Lorenz96(K=K_lorenz,J=J_lorenz,I=I_lorenz,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+    L96 = lorenz96.Lorenz96(K=K_lorenz,J=J_lorenz,I=I_lorenz,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
     # x.shape = (K)
     # y.shape = (K,J)
     # z.shape = (K,J,I)
-    x,y,z = L96.X_coord, L96.Y_coord, L96.Z_coord
+    x,y,z = L96.X_level, L96.Y_level, L96.Z_level
+    y0 = [x,y,z]
     npoints = 10000
     t_start, t_end = 0,10
     dt = (t_end - t_start)/npoints 
-    X_out = np.zeros((npoints, K, 1, 1))
-    Y_out = np.zeros((npoints, K, J, 1))
-    Z_out = np.zeros((npoints, K, J, I))
 
-    pr = para.Parareal(rk4_step)
-    yG_correct, correction = pr.parareal(y0, nG, nF, yG, deltaG, deltaF, K, lorenz63, **f_kwargs)
+    pr = para.Parareal(rk4_step_l96)
+    yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, L96.l96, **f_kwargs)
  
-    for i in range(npoints):
-        x_,y_,z_ = L96.rk4_step(dt,[x,y,z])
-        X_out[i,:] = x_[:,None,None]
-        Y_out[i,:] = y_[:,:,None]
-        Z_out[i,:] = z_
-        x,y,z = x_,y_,z_
+    print(yG_corret.shape, correction.shape)
     plot_l96(X_out, Y_out, Z_out)
     
 def l63_init(y0,nG):
@@ -170,9 +184,6 @@ def main_l63():
     f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
     pr = para.Parareal(rk4_step)
     yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, lorenz63, **f_kwargs)
-    #print(yG_correct.shape)
-    print(yG_correct.shape)
-    print(correction.shape)
     
     for i in range(K):
         ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
@@ -211,5 +222,6 @@ def main_l63():
 
 
 if __name__ == "__main__":
-    main_l63()
+    main_l96()
+    #main_l63()
 

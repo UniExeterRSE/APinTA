@@ -50,11 +50,11 @@ class Lorenz96(object):
         if X0 is not None:
              self._X = X0.copy()
         else:
-             self._X = np.random.normal(loc=0,scale = 1, size=(K))
+             self._X = np.random.normal(loc=0,scale = 1, size=(K,J,I))
         if Y0 is not None:
              self._Y = X0.copy()
         else:
-             self._Y = np.random.normal(loc=0,scale = 1, size=(K,J))
+             self._Y = np.random.normal(loc=0,scale = 1, size=(K,J,I))
         if Z0 is not None:
              self._Z = Z0.copy()
         else:
@@ -69,23 +69,23 @@ class Lorenz96(object):
         self.d = d
 
     @property
-    def X_coord(self):
+    def X_level(self):
         """
-        get X coord array
+        get X level array
         """
         return self._X
     
     @property
-    def Y_coord(self):
+    def Y_level(self):
         """
-        get Y coord array
+        get Y level array
         """
         return self._Y
     
     @property
-    def Z_coord(self):
+    def Z_level(self):
         """
-        get Z coord array
+        get Z level array
         """
         return self._Z
     
@@ -106,7 +106,6 @@ class Lorenz96(object):
         """
         x,y,z = A
         x1,y1,z1 = self.l96(x,y,z)  
-
         x2,y2,z2 = self.l96(x+x1*dt/2.0,
                 y + y1*dt/2.0,
                 z + z1*dt/2.0)
@@ -140,7 +139,7 @@ class Lorenz96(object):
         Y_next = -self.c*self.b*np.roll(Y,-1)*(np.roll(Y,-2) - np.roll(Y,1)) - self.c*Y + (self.h*self.c/self.b)*X[:,None]
         return X_next, Y_next, Z_next
 
-    def _l96_three(self, X, Y, Z):
+    def _l96_three_(self, X, Y, Z):
         """
         three level l96
         """
@@ -151,6 +150,19 @@ class Lorenz96(object):
         Y_next -= (self.h*self.e/self.d)*Z.sum(axis=2)
         Z_next = self.e*self.d*np.roll(Z,1)*(np.roll(Z,-1) - np.roll(Z,2)) - self.g*self.e*Z + (self.h*self.e/self.d)*Y[:,:,None]
         return X_next, Y_next, Z_next
+    
+    def _l96_three(self, X, Y, Z):
+        """
+        three level l96
+        """
+        Y_next,Z_next = 0.,0.  
+        X_next = np.roll(X,1)*(np.roll(X,-1) - np.roll(X,2)) - X + self.F
+        X_next[:,:,0] -= (self.h*self.c/self.b)*Y.sum(axis=1)
+        Y_next = -self.c*self.b*np.roll(Y,-1)*(np.roll(Y,-2) - np.roll(Y,1)) - self.c*Y + (self.h*self.c/self.b)*X
+        Y_next[:,:,0] -= (self.h*self.e/self.d)*Z.sum(axis=2)
+        Z_next = self.e*self.d*np.roll(Z,1)*(np.roll(Z,-1) - np.roll(Z,2)) - self.g*self.e*Z + (self.h*self.e/self.d)*Y
+        return X_next, Y_next, Z_next
+    
 
 
     def l96(self, X,Y,Z):
@@ -167,22 +179,18 @@ class Lorenz96(object):
         return [X_next, Y_next, Z_next] 
 
 
-def plot_l96(X,Y,Z):
+def plot_l96(X,Y,Z, nvars):
     """
     Plot X,Y,Z variables
     """
-    nvars = X.shape[-1]
-    nrows, ncols = 4, nvars//2
-    #fig, axs = plt.subplots(nvars,figsize=(10,8), sharex=True) 
-    fig, axs = plt.subplots(3,figsize=(10,8)) 
     X_xpoints = np.arange(0,X.shape[0],1)
     Y_xpoints = np.arange(0,X.shape[0],1/Y.shape[-2])
     Z_xpoints = np.arange(0,X.shape[0],1/Y.shape[-2]/Z.shape[-1])
     for i in range(nvars):
-        fig, axs = plt.subplots(3,figsize=(10,8)) 
-        axs[0].plot(X_xpoints, X[:,i,0,0])
-        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]))
-        axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]))
+        fig, axs = plt.subplots(3,figsize=(10,8), sharex=True) 
+        axs[0].plot(X_xpoints, X[:,i,0,0],'-o')
+        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]), '-')
+        axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]), '-')
         plt.suptitle('X,Y,Z variables')
         plt.show()
 
@@ -213,41 +221,48 @@ def main():
     """
     """
     K = 8 
-    J = 10 
-    I = 10 
+    J = 4 
+    I = 4
     nlevels = 3
     h, g = 1., 1.
     b, c, e, d = 1., 1., 1., 1.
-    F = 20.
+    F = 10.
 
     
     #L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
     #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
     L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
-    x,y,z = L96.X_coord, L96.Y_coord, L96.Z_coord
+    x,y,z = L96.X_level, L96.Y_level, L96.Z_level
     npoints = 10000
     t_start, t_end = 0,10
     dt = (t_end - t_start)/npoints 
-    X_out = np.zeros((npoints, K, 1, 1))
-    Y_out = np.zeros((npoints, K, J, 1))
-    Z_out = np.zeros((npoints, K, J, I))
-    X_out_list = [[None]*K]*npoints
-    Y_out_list = [[[None]*J]*K]*npoints
-    Z_out_list = [[[[None]*I]*J]*K]*npoints
-    Z_out_arr = np.array(Z_out_list)
-    Y_out_arr = np.array(Y_out_list)
-    X_out_arr = np.array(X_out_list)
+    #X_out = np.zeros((npoints, K, 1, 1))
+    #Y_out = np.zeros((npoints, K, J, 1))
+    #Z_out = np.zeros((npoints, K, J, I))
+    #X_out_list = [[None]*K]*npoints
+    #Y_out_list = [[[None]*J]*K]*npoints
+    #Z_out_list = [[[[None]*I]*J]*K]*npoints
+    #Z_out_arr = np.array(Z_out_list)
+    #Y_out_arr = np.array(Y_out_list)
+    #X_out_arr = np.array(X_out_list)
+    data_out = np.zeros((npoints, 3, K,J,I))
     for i in range(npoints):
         x_,y_,z_ = L96.rk4_step(dt,[x,y,z])
         #X_out[i,:] = x_[:,None,None]
         #Y_out[i,:] = y_[:,:,None]
         #Z_out[i,:] = z_
-        X_out_list[i] = x_.copy()
-        Y_out_list[i] = y_.copy()
-        Z_out_list[i] = z_.copy()
+        #X_out_list[i] = x_.copy()
+        #Y_out_list[i] = y_.copy()
+        #Z_out_list[i] = z_.copy()
+        data_out[i,0] = x_.copy()
+        data_out[i,1] = y_.copy()
+        data_out[i,2] = z_.copy()
         x,y,z = x_,y_,z_
-    #plot_l96(X_out, Y_out, Z_out)
-    plot_l96_list(X_out_list, Y_out_list, Z_out_list)
+    X_out = data_out[:,0]
+    Y_out = data_out[:,1]
+    Z_out = data_out[:,2]
+    plot_l96(X_out, Y_out, Z_out, K)
+    #plot_l96_list(X_out_list, Y_out_list, Z_out_list)
     
 if __name__ == "__main__":
     main()
