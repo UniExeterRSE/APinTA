@@ -50,15 +50,19 @@ class Lorenz96(object):
         if X0 is not None:
              self._X = X0.copy()
         else:
-             self._X = np.random.normal(loc=0,scale = 1, size=(K,J,I))
+             #self._X = np.random.normal(loc=0,scale = 1, size=(K,J,I))
+             self._X = np.random.normal(loc=0,scale = 1, size=(K))
         if Y0 is not None:
-             self._Y = X0.copy()
+             self._Y = Y0.copy()
         else:
-             self._Y = np.random.normal(loc=0,scale = 1, size=(K,J,I))
+             #self._Y = np.random.normal(loc=0,scale = 1, size=(K,J,I))
+             #self._Y = np.random.normal(loc=0,scale = 1, size=(K,J))
+             self._Y = np.zeros((K,J))
         if Z0 is not None:
              self._Z = Z0.copy()
         else:
-             self._Z = np.random.normal(loc=0,scale = 0.05, size=(K,J,I))
+             #self._Z = np.random.normal(loc=0,scale = 0.05, size=(K,J,I))
+             self._Z = np.zeros((K,J,I))
 
         self.h = h
         self.g = g
@@ -139,7 +143,7 @@ class Lorenz96(object):
         Y_next = -self.c*self.b*np.roll(Y,-1)*(np.roll(Y,-2) - np.roll(Y,1)) - self.c*Y + (self.h*self.c/self.b)*X[:,None]
         return X_next, Y_next, Z_next
 
-    def _l96_three_(self, X, Y, Z):
+    def _l96_three(self, X, Y, Z):
         """
         three level l96
         """
@@ -151,7 +155,7 @@ class Lorenz96(object):
         Z_next = self.e*self.d*np.roll(Z,1)*(np.roll(Z,-1) - np.roll(Z,2)) - self.g*self.e*Z + (self.h*self.e/self.d)*Y[:,:,None]
         return X_next, Y_next, Z_next
     
-    def _l96_three(self, X, Y, Z):
+    def _l96_three_(self, X, Y, Z):
         """
         three level l96
         """
@@ -186,13 +190,56 @@ def plot_l96(X,Y,Z, nvars):
     X_xpoints = np.arange(0,X.shape[0],1)
     Y_xpoints = np.arange(0,X.shape[0],1/Y.shape[-2])
     Z_xpoints = np.arange(0,X.shape[0],1/Y.shape[-2]/Z.shape[-1])
+    print(np.ravel(Y[:,0,:,0]).shape)
+    print(X_xpoints.shape, Y_xpoints.shape, Z_xpoints.shape)
     for i in range(nvars):
         fig, axs = plt.subplots(3,figsize=(10,8), sharex=True) 
         axs[0].plot(X_xpoints, X[:,i,0,0],'-o')
-        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]), '-')
-        axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]), '-')
+        axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]), '-o')
+        axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]), '-o')
         plt.suptitle('X,Y,Z variables')
         plt.show()
+
+def plot_l96_polar(X,Y,Z, nvars):
+    """
+    Plot X,Y,Z variables
+    """
+    x_r = np.linspace(0,1,X.shape[0]) 
+    X_theta = 2.*np.pi*x_r
+    y_r = np.linspace(0,1,len(np.arange(0,X.shape[0],1/Y.shape[-2])))
+    Y_theta = 2.*np.pi*y_r
+    for i in range(nvars):
+        fig, axs = plt.subplots(subplot_kw={'projection':'polar'}) 
+        axs.plot(X_theta,X[:,i,0,0])
+        axs.plot(Y_theta,np.ravel(Y[:,i,:,0]))
+        #axs[0].plot(X_xpoints, X[:,i,0,0],'-o')
+        #axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]), '-')
+        #axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]), '-')
+        #plt.suptitle('X,Y,Z variables')
+        plt.show()
+
+def plot_l96_vars_polar(X,Y,Z, nvars):
+    """
+    Plot X,Y,Z variables
+    """
+    x_r = np.linspace(0,2,X.shape[-3]) 
+    X_theta = np.pi*x_r
+    y_r = np.linspace(0,2,len(np.arange(Y.shape[-3]*Y.shape[-2])))
+    Y_theta = np.pi*y_r
+    z_r = np.linspace(0,2,len(np.arange(Z.shape[-3]*Z.shape[-2]*Z.shape[-1])))
+    Z_theta = np.pi*z_r
+
+    fig, axs = plt.subplots(subplot_kw={'projection':'polar'}) 
+    axs.plot(X_theta,X[-1,:,0,0])
+    axs.plot(Y_theta,np.ravel(Y[-1,:,:,0]))
+    axs.plot(Z_theta,np.ravel(Z[-1,:,:,:]))
+    #axs[0].plot(X_xpoints, X[:,i,0,0],'-o')
+    #axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]), '-')
+    #axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]), '-')
+    #plt.suptitle('X,Y,Z variables')
+    plt.show()
+
+
 
 def plot_l96_list(X,Y,Z):
     """
@@ -220,9 +267,9 @@ def plot_l96_list(X,Y,Z):
 def main():
     """
     """
-    K = 8 
-    J = 4 
-    I = 4
+    K = 36 
+    J = 10 
+    I = 10 
     nlevels = 3
     h, g = 1., 1.
     b, c, e, d = 1., 1., 1., 1.
@@ -233,8 +280,8 @@ def main():
     #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
     L96 = Lorenz96(K=K,J=J,I=I,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
     x,y,z = L96.X_level, L96.Y_level, L96.Z_level
-    npoints = 10000
-    t_start, t_end = 0,10
+    npoints = 1000
+    t_start, t_end = 0,5
     dt = (t_end - t_start)/npoints 
     #X_out = np.zeros((npoints, K, 1, 1))
     #Y_out = np.zeros((npoints, K, J, 1))
@@ -254,14 +301,16 @@ def main():
         #X_out_list[i] = x_.copy()
         #Y_out_list[i] = y_.copy()
         #Z_out_list[i] = z_.copy()
-        data_out[i,0] = x_.copy()
-        data_out[i,1] = y_.copy()
+        data_out[i,0,:,0,0] = x_.copy()
+        data_out[i,1,:,:,0] = y_.copy()
         data_out[i,2] = z_.copy()
         x,y,z = x_,y_,z_
     X_out = data_out[:,0]
     Y_out = data_out[:,1]
     Z_out = data_out[:,2]
     plot_l96(X_out, Y_out, Z_out, K)
+    #plot_l96_polar(X_out, Y_out, Z_out, K)
+    plot_l96_vars_polar(X_out, Y_out, Z_out, K)
     #plot_l96_list(X_out_list, Y_out_list, Z_out_list)
     
 if __name__ == "__main__":
