@@ -49,7 +49,7 @@ class Parareal():
         # Initial coarse run through 
         for i in range(1,nG+1):
             yG[i,0,...] = self.integratorStep(self.solver, deltaG, yG[i-1,0,...], f, **f_kwargs)
-        print(yG)
+        # print(yG)
         yG_correct = yG.copy()
         correction = np.empty(((nG,K,int(nF/nG)+1,)+(y0.shape)))
         correction[0,:,0,...] = yG_init[0,:] 

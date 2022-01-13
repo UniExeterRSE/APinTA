@@ -31,13 +31,34 @@ def rk4_step(dt, x, f, **f_kwargs):
     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
     return x_n
 
+# def rk4_step_l96(dt, A, f, **f_kwargs):
+#     """
+#     A single timestep using RK4
+#     """
+#     x,y,z = A
+#     x1,y1,z1 = f(x,y,z)  
+
+#     x2,y2,z2 = f(x+x1*dt/2.0,
+#             y + y1*dt/2.0,
+#             z + z1*dt/2.0)
+#     x3,y3,z3 = f(x+x2*dt/2.0,
+#             y + y2*dt/2.0,
+#             z + z2*dt/2.0)
+#     x4,y4,z4 = f(x+x3*dt/2.0,
+#             y + y3*dt/2.0,
+#             z + z3*dt/2.0)
+#     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
+#     y_n = y + dt*(y1 + 2*y2 + 2*y3 + y4)/6.0
+#     z_n = z + dt*(z1 + 2*z2 + 2*z3 + z4)/6.0
+#     return x_n, y_n, z_n
+
 def rk4_step_l96(dt, A, f, **f_kwargs):
     """
     A single timestep using RK4
     """
-    x,y,z = A
+    out_array = np.zeros(A.shape)
+    x,y,z = A[0,:,0,0],A[1,:,:,0],A[2,:]
     x1,y1,z1 = f(x,y,z)  
-
     x2,y2,z2 = f(x+x1*dt/2.0,
             y + y1*dt/2.0,
             z + z1*dt/2.0)
@@ -50,7 +71,11 @@ def rk4_step_l96(dt, A, f, **f_kwargs):
     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
     y_n = y + dt*(y1 + 2*y2 + 2*y3 + y4)/6.0
     z_n = z + dt*(z1 + 2*z2 + 2*z3 + z4)/6.0
-    return x_n, y_n, z_n
+    out_array[0,:,0,0] = x_n
+    out_array[1,:,:,0] = y_n
+    out_array[2,:] = z_n
+    #return np.stack((x_n, y_n, z_n))
+    return out_array 
 
 #def rk4_step(dt, x, f, **f_kwargs):
 #    """
@@ -122,31 +147,56 @@ def main_l96():
      
     deltaF = xF[0,1] - xF[0,0]
     f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
-    K_lorenz = 8 
+    K_lorenz = 36 
     J_lorenz = 10 
     I_lorenz = 10 
     nlevels = 3
     h, g = 1., 1.
     b, c, e, d = 1., 1., 1., 1.
-    F = 20.
+    F = 10.
     
     #L96 = Lorenz96(K=K,h=h,F=F,nlevels=1)
     #L96 = Lorenz96(K=K,J=J,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=2)
-    L96 = lorenz96.Lorenz96(K=K_lorenz,J=J_lorenz,I=I_lorenz,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+    # L96 = lorenz96.Lorenz96(K=K_lorenz,J=J_lorenz,I=I_lorenz,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
+
+    L96 = lorenz96.Lorenz96_three(K=K_lorenz,J=J_lorenz,I=I_lorenz,h=h,g=g,b=b,c=c,e=e,d=d,F=F,nlevels=3)
     # x.shape = (K)
     # y.shape = (K,J)
     # z.shape = (K,J,I)
     x,y,z = L96.X_level, L96.Y_level, L96.Z_level
-    y0 = [x,y,z]
-    npoints = 10000
+    print(x.shape, y.shape, z.shape)
+    y0 = np.zeros((3,K_lorenz,J_lorenz,I_lorenz))
+    y0[0,:,0,0] = x
+    y0[1,:,:,0] = y
+    y0[2,:] = z
+    # y0 = [x,y,z]
+    npoints = 1000
     t_start, t_end = 0,10
     dt = (t_end - t_start)/npoints 
 
     pr = para.Parareal(rk4_step_l96)
     yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, L96.l96, **f_kwargs)
  
-    print(yG_corret.shape, correction.shape)
-    plot_l96(X_out, Y_out, Z_out)
+    print(yG_correct.shape, correction.shape)
+    for i in range(K):
+        ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
+        ax1.plot(xG[1:], yG_correct[1:,i,0,0,0,0], '-o', lw=1.5, label="x")
+        ax2.plot(xG[1:], yG_correct[1:,i,1,0,0,0], '-o', lw=1.5, label="y")
+        ax3.plot(xG[1:], yG_correct[1:,i,2,0,0,0], '-o', lw=1.5, label="z")
+        ax1.plot(xG[1:], correction[:,i,-1,0,0,0,0], '-o', lw=1.5, label="x corr")
+        ax2.plot(xG[1:], correction[:,i,-1,1,0,0,0], '-o', lw=1.5, label="y corr")
+        ax3.plot(xG[1:], correction[:,i,-1,2,0,0,0], '-o', lw=1.5, label="z corr")
+        ax1.set_ylabel("X")
+        ax2.set_ylabel("Y")
+        ax3.set_ylabel("Z")
+        ax3.set_xlabel("Time")
+        ax1.set_title(f"Lorenz 96 Attractor: iteration {i}")
+        ax1.legend()
+        ax2.legend()
+        ax3.legend()
+        plt.savefig(f"L96_iteration_mod_{i}.png")
+        plt.show()
+
     
 def l63_init(y0,nG):
     """
