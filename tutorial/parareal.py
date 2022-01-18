@@ -41,7 +41,7 @@ class Parareal():
         f function being integrated  
         """
         y0 = np.array(y0)
-        print(y0.shape)
+        # print(y0.shape)
         y0_extend = y0.reshape((1,1,)+y0.shape)
         yG_init = y0_extend.repeat(K,1)
         yG = np.empty(((nG+1,K,)+(y0.shape))) 

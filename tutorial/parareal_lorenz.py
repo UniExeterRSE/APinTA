@@ -176,26 +176,27 @@ def main_l96():
 
     pr = para.Parareal(rk4_step_l96)
     yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, L96.l96, **f_kwargs)
+    plot_l96_polar(yG_correct, correction)
  
-    print(yG_correct.shape, correction.shape)
-    for i in range(K):
-        ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
-        ax1.plot(xG[1:], yG_correct[1:,i,0,0,0,0], '-o', lw=1.5, label="x")
-        ax2.plot(xG[1:], yG_correct[1:,i,1,0,0,0], '-o', lw=1.5, label="y")
-        ax3.plot(xG[1:], yG_correct[1:,i,2,0,0,0], '-o', lw=1.5, label="z")
-        ax1.plot(xG[1:], correction[:,i,-1,0,0,0,0], '-o', lw=1.5, label="x corr")
-        ax2.plot(xG[1:], correction[:,i,-1,1,0,0,0], '-o', lw=1.5, label="y corr")
-        ax3.plot(xG[1:], correction[:,i,-1,2,0,0,0], '-o', lw=1.5, label="z corr")
-        ax1.set_ylabel("X")
-        ax2.set_ylabel("Y")
-        ax3.set_ylabel("Z")
-        ax3.set_xlabel("Time")
-        ax1.set_title(f"Lorenz 96 Attractor: iteration {i}")
-        ax1.legend()
-        ax2.legend()
-        ax3.legend()
-        plt.savefig(f"L96_iteration_mod_{i}.png")
-        plt.show()
+    # print(yG_correct.shape, correction.shape)
+    # for i in range(K):
+    #     ax1,ax2,ax3 = plt.figure(figsize=(10,8)).subplots(3,1)
+    #     ax1.plot(xG[1:], yG_correct[1:,i,0,0,0,0], '-o', lw=1.5, label="x")
+    #     ax2.plot(xG[1:], yG_correct[1:,i,1,0,0,0], '-o', lw=1.5, label="y")
+    #     ax3.plot(xG[1:], yG_correct[1:,i,2,0,0,0], '-o', lw=1.5, label="z")
+    #     ax1.plot(xG[1:], correction[:,i,-1,0,0,0,0], '-o', lw=1.5, label="x corr")
+    #     ax2.plot(xG[1:], correction[:,i,-1,1,0,0,0], '-o', lw=1.5, label="y corr")
+    #     ax3.plot(xG[1:], correction[:,i,-1,2,0,0,0], '-o', lw=1.5, label="z corr")
+    #     ax1.set_ylabel("X")
+    #     ax2.set_ylabel("Y")
+    #     ax3.set_ylabel("Z")
+    #     ax3.set_xlabel("Time")
+    #     ax1.set_title(f"Lorenz 96 Attractor: iteration {i}")
+    #     ax1.legend()
+    #     ax2.legend()
+    #     ax3.legend()
+    #     plt.savefig(f"L96_iteration_mod_{i}.png")
+    #     plt.show()
 
     
 def l63_init(y0,nG):
@@ -212,7 +213,52 @@ def l63_init(y0,nG):
     #z[0] = z0
     yG = np.stack((x,y,z),axis=-1)#.reshape(((nG+1)*3,K))    
     return yG
+
+
+def plot_l96_polar(yG_correct, correction):
+    """
+    Plot X,Y,Z variables
+    """
+    # (npoints, K_para,K_lorenz,J_lorenz,I_lorenz)
+    XG = np.array(yG_correct[1:,:,0,:]) 
+    YG = np.array(yG_correct[1:,:,1,:])
+    ZG = np.array(yG_correct[1:,:,2,:])
+
+    # (npoints, K_para,K_lorenz,J_lorenz,I_lorenz)
+    Xc = np.array(correction[:,:,-1,0,:]) 
+    Yc = np.array(correction[:,:,-1,1,:])
+    Zc = np.array(correction[:,:,-1,2,:])
+
+    x_r = np.linspace(0,2,XG.shape[-3]) 
+    X_theta = np.pi*x_r
+    y_r = np.linspace(0,2,len(np.arange(YG.shape[-3]*YG.shape[-2])))
+    Y_theta = np.pi*y_r
+    z_r = np.linspace(0,2,len(np.arange(ZG.shape[-3]*ZG.shape[-2]*ZG.shape[-1])))
+    Z_theta = np.pi*z_r
+
+    for k in range(XG.shape[1]):
+        fig, (ax1,ax2,ax3) = plt.subplots(nrows=1, ncols=3, subplot_kw={'projection':'polar'},figsize=(12,6)) 
+        ax1.plot(X_theta,XG[-1,k,:,0,0], label='X')
+        ax1.plot(X_theta,Xc[-1,k,:,0,0], label='X correction')
+        ax1.legend(loc='upper left')
+
+        ax2.plot(Y_theta,np.ravel(YG[-1,k,:,:,0]), label='Y')
+        ax2.plot(Y_theta,np.ravel(Yc[-1,k,:,:,0]), label='Y Correction')
+        ax2.legend(loc='upper left')
+
+        ax3.plot(Z_theta,np.ravel(ZG[-1,k,:,:,:]), label='Z')
+        ax3.plot(Z_theta,np.ravel(Zc[-1,k,:,:,:]), label='Z Correction')
+        ax3.legend(loc='upper left')
         
+        #axs[0].plot(X_xpoints, X[:,i,0,0],'-o')
+        #axs[1].plot(Y_xpoints, np.ravel(Y[:,i,:,0]), '-')
+        #axs[2].plot(Z_xpoints, np.ravel(Z[:,i,:,:]), '-')
+        plt.suptitle(f'Iteration {k}')
+        plt.savefig(f'l96_polar_iteratin_{k:03}.png')
+        #plt.legend(loc='upper left')
+        plt.show()
+
+      
     
 def main_l63():
     a = 0
