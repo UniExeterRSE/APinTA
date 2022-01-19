@@ -174,7 +174,7 @@ def main_l96():
     t_start, t_end = 0,10
     dt = (t_end - t_start)/npoints 
 
-    pr = para.Parareal(rk4_step_l96)
+    pr = para.Parareal(rk4_step_l96, rk4_step_l96)
     yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, L96.l96, **f_kwargs)
     plot_l96_polar(yG_correct, correction)
  
@@ -278,7 +278,7 @@ def main_l63():
      
     deltaF = xF[0,1] - xF[0,0]
     f_kwargs = {"sigma" : 10, "beta" : 8/3, "rho" : 28}
-    pr = para.Parareal(rk4_step)
+    pr = para.Parareal(rk4_step, rk4_step)
     yG_correct, correction = pr.parareal(y0, nG, nF, deltaG, deltaF, K, lorenz63, **f_kwargs)
     
     for i in range(K):
@@ -318,6 +318,6 @@ def main_l63():
 
 
 if __name__ == "__main__":
-    main_l96()
-    #main_l63()
+    #main_l96()
+    main_l63()
 

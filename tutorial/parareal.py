@@ -5,10 +5,11 @@ class Parareal():
     Parallel-in-time algorithm
     """
 
-    def __init__(self, integrator):
+    def __init__(self, coarseIntegrator, fineIntegrator):
         """
         """
-        self.solver = integrator
+        self.coarseSolver = coarseIntegrator
+        self.fineSolver = fineIntegrator
 
    # def _rk4_step(self,dt, x,f, **f_kwargs):
    #     """
@@ -22,13 +23,22 @@ class Parareal():
    #     x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
    #     return x_n
      
-    def integratorStep(self,I,deltat,y0, f, **f_kwargs):
+    def coarseIntegratorStep(self,I,deltat,y0, f, **f_kwargs):
         """
         single step of the integrator
         """
         # initial coarse integration solution
         y = I(deltat, y0, f, **f_kwargs)
         return y
+
+    def fineIntegratorStep(self,I,deltat,y0, f, **f_kwargs):
+        """
+        single step of the integrator
+        """
+        # initial coarse integration solution
+        y = I(deltat, y0, f, **f_kwargs)
+        return y
+
 
     def parareal(self, y0, nG, nF, deltaG, deltaF, K, f, **f_kwargs):
         """
@@ -48,7 +58,7 @@ class Parareal():
         yG[0] = yG_init[0]
         # Initial coarse run through 
         for i in range(1,nG+1):
-            yG[i,0,...] = self.integratorStep(self.solver, deltaG, yG[i-1,0,...], f, **f_kwargs)
+            yG[i,0,...] = self.coarseIntegratorStep(self.coarseSolver, deltaG, yG[i-1,0,...], f, **f_kwargs)
         # print(yG)
         yG_correct = yG.copy()
         correction = np.empty(((nG,K,int(nF/nG)+1,)+(y0.shape)))
@@ -59,10 +69,10 @@ class Parareal():
             for i in range(nG):
                 correction[i,k,0,...] = yG_correct[i,k-1,...]  
                 for j in range(1,int(nF/nG)+1): # This is for parallel running
-                    correction[i,k,j,...] = self.integratorStep(self.solver, deltaF, correction[i,k,j-1,...],f,**f_kwargs)  
+                    correction[i,k,j,...] = self.fineIntegratorStep(self.fineSolver, deltaF, correction[i,k,j-1,...],f,**f_kwargs)  
             # Predict and correct 
             for i in range(nG):
-                yG[i+1,k,...] = self.integratorStep(self.solver, deltaG, yG_correct[i,k,...],f,**f_kwargs) 
+                yG[i+1,k,...] = self.coarseIntegratorStep(self.coarseSolver, deltaG, yG_correct[i,k,...],f,**f_kwargs) 
                 yG_correct[i+1,k,...] = yG[i+1,k,...] - yG[i+1,k-1,...] + correction[i,k,-1,...]
 
         return yG_correct, correction
