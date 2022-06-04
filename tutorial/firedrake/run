@@ -1,0 +1,1 @@
+mpiexec -n 2 python burger_para_mpi.py
