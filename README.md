@@ -1,4 +1,4 @@
-## Advanced Parallel in time Algorithms (APinTA) for Partial Differential Equations
+## Advanced Parallel in Time Algorithms (APinTA) for Partial Differential Equations
 
 <img src="images/Parallel-in-Time.jpeg" width="25%" height="25%" align="right" />
 
