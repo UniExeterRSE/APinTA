@@ -142,7 +142,7 @@ class Parareal:
                     elif (my_rank_en == manager.ensemble_comm.Get_size() -1):
                         manager.send(correction[k-1][i][my_rank_en], 0)
                 # Pass the fine integrator calculation to rank 0 for correction step later
-                if (my_rank_en == 0):
+                if my_rank_en == 0:
                     manager.recv(correction_collect[k-1][i], manager.ensemble_comm.Get_size() -1)
 
 
