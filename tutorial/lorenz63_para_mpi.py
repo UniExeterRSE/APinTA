@@ -73,29 +73,11 @@ class Parareal:
                 )
                 + y0.shape
             )
-        u_tilda_init = y0_extend.repeat(K, 1)
-        u_tilda = np.empty(
-            (
-                (
-                    nG,
-                    K,
-                )
-                + (y0.shape)
-            )
-        )
-        u_tilda[0] = u_tilda_init[0]
-        # Initial coarse run through
-        for i in range(1, nG):
-            u_tilda[i, 0, ...] = self.integratorStep(
-                self.solver, deltaG, u_tilda[i - 1, 0, ...], f, **f_kwargs
-            )
 
-
+        u = None
         if rank == 0:
-            # Array to save corrected coarse propagator estimates
-            u = u_tilda.copy()
-        else:
-            u = np.zeros(
+            u_tilda_init = y0_extend.repeat(K, 1)
+            u_tilda = np.empty(
                 (
                     (
                         nG,
@@ -104,6 +86,17 @@ class Parareal:
                     + (y0.shape)
                 )
             )
+            u_tilda[0] = u_tilda_init[0]
+            # Initial coarse run through
+            for i in range(1, nG):
+                u_tilda[i, 0, ...] = self.integratorStep(
+                    self.solver, deltaG, u_tilda[i - 1, 0, ...], f, **f_kwargs
+                )
+
+
+            # Array to save corrected coarse propagator estimates
+            u = u_tilda.copy()
+        
 
         u_gather = np.empty(
                 (
@@ -148,16 +141,18 @@ class Parareal:
             # run fine integrator in parallel for each k interation
                 #comm.Recv(u_local, source=rank - 1, tag=rank)
 
-            comm.Scatter(u, u_local, root=0)
-            #print("local", k, rank, u_local[k-1])
-            u_hat[k - 1, ...] = self.integrate(
-                nF, f, u_local[k - 1, ...], deltaF, **f_kwargs
-            )
-            
+            u = comm.bcast(u, root=0)
+            if rank > 0:
+                u_hat[k - 1, ...] = self.integrate(
+                    nF, f, u[rank-1, k-1,...], deltaF, **f_kwargs
+                )
+            elif rank == 0:
+                u_hat[k-1, ...] = u[0,k-1] 
+
 
             comm.Gather(u_hat, u_hat_gather, root=0)
-            
-
+            # print("u_hat",k, rank, u_hat[k-1])
+            # print("u_hat_gather",k, rank, u_hat_gather[rank,k-1])
             if rank == 0:
                 # Predict and correct
                 for i in range(1,nG):
@@ -169,9 +164,9 @@ class Parareal:
                         + u_hat_gather[i, k - 1, -1, ...]
                         - u_tilda[i, k - 1, ...]
                     )
-                    print("zero", k,rank, u[:, k, ...], u[:,k-1,...])
+                    #print("zero", k,rank, u[:, k, ...], u[:,k-1,...])
 
-                #print(f"{u[i,k,...] }u {u[i-1,k-1,...]}")
+                    #print(f"{k}, {i}, {u[i,k,...] }u {u[i-1,k-1,...]}")
         return u, u_hat_gather
 
 
@@ -206,24 +201,26 @@ def rk4_step(dt, x, f, **f_kwargs):
 
 def run_parareal_l63():
     a = 0
-    b = 0.2 
+    b = 2. 
     # Number of coarse resolution timesteps
     nG = nproc
     # number of fine resolution timesteps
-    nF = 100
+    nF = 1000
     # Number of parareal iterations
     K = 10
     # Model initial conditions
     y0 = [5, -5, 20]
     # coarse grid
-    xG = np.linspace(a, b, nG + 1)
+    xG = np.linspace(a, b, nG+1)
     deltaG = (b - a) / nG
     # u_tilda shape (n_samples, n_vars)
-    xF = np.zeros((nG, int(nF / nG) + 1))
+    #xF = np.zeros((nG, int(nF / nG) + 1))
+    xF = np.zeros((nG, nF+1))
     # fine grid, for each coarse grid interval
     for i in range(nG):
         left, right = xG[i], xG[i + 1]
-        xF[i, :] = np.linspace(left, right, int(nF / nG) + 1)
+        #xF[i, :] = np.linspace(left, right, int(nF / nG) + 1)
+        xF[i, :] = np.linspace(left, right, nF+1)
 
     deltaF = xF[0, 1] - xF[0, 0]
     f_kwargs = {"sigma": 10, "beta": 8 / 3, "rho": 28}
