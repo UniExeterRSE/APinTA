@@ -7,83 +7,49 @@ class Parareal:
     Parallel-in-time algorithm
     """
 
-    def __init__(self, solv, u, u0, uk, k, k1, k2, k3, k4, nG, nF, deltaG, deltaF, K):
+    def __init__(self, coarse_solver, fine_solver, u0,
+                 nG, nF, K, save_all_output=False):
         """
         """
         
-        self.solv = solv
-        self.u = u
+        self.coarse_solver = coarse_solver
+        self.fine_solver = fine_solver        
         self.u0 = u0
-        self.uk = uk
-        self.k = k
-        self.k1 = k1
-        self.k2 = k2
-        self.k3 = k3
-        self.k4 = k4
         self.nG = nG
         self.nF = nF
-        self.deltaG = deltaG
-        self.deltaF = deltaF
         self.K = K
-
-
-    def rk4_step(self, dt, u0):
-
-        self.uk.assign(u0)
-        self.solv.solve()
-        self.k1.assign(self.k)
-
-        self.uk.assign(u0 + dt * self.k1 / 2.0)
-        self.solv.solve()
-        self.k2.assign(self.k)
-
-        self.uk.assign(u0 + dt * self.k2 / 2.0)
-        self.solv.solve()
-        self.k3.assign(self.k)
-
-        self.uk.assign(u0 + dt * self.k3)
-        self.solv.solve()
-        self.k4.assign(self.k)
-
-        self.u.assign(u0 + dt * 1 / 6.0 * (self.k1 + 2.0 * self.k2 + 2.0 * self.k3 + self.k4))
-
-        return self.u
-
+        self.save_all_output = save_all_output
 
     def coarseIntegratorStep(self, u0):
         """
         single step of the integrator
         """
         # initial coarse integration solution
-        return self.rk4_step(self.deltaG, u0) 
+        return self.coarse_solver.apply(u0) 
 
-    def fineIntegratorStep(self,u0):
+    def fineIntegratorStep(self, u0):
         """
         single step of the integrator
         """
-        return self.rk4_step(self.deltaF,u0) 
+        return self.fine_solver.apply(u0) 
 
     def parareal(self, V_out):
         """
         Parareal calculation
         nG coarse grid points
         nF fine grid points
-        deltaG coarse grid delta t
-        deltaF fine grid delta t
         K number of parallel iterations
-        f function being integrated
         """
 
-        # yG = np.empty((self.nG + 1, self.K)).tolist()
-        yG = [[self.u0.copy(deepcopy=True) for i in range(self.nG +1)] for k in range(self.K)]
+        yG = [[self.u0.copy(deepcopy=True) for i in range(self.nG+1)] for k in range(self.K)]
         # Initial coarse run through
         print(f"First pass coarse integrator")
         outfile_0 = File(f"output/burgers_parareal_K0.pvd")
-        for i in range(1, self.nG + 1):
-            yG[0][i].assign(self.coarseIntegratorStep(yG[0][i-1]))
-            outfile_0.write(project(yG[0][i], V_out, name="Velocity"))
+        for i in range(self.nG):
+            yG[0][i+1].assign(self.coarseIntegratorStep(yG[0][i]))
+            outfile_0.write(project(yG[0][i+1], V_out, name="Velocity"))
 
-        yG_correct = yG.copy()
+        yG_correct = [[self.u0.copy(deepcopy=True) for i in range(self.nG+1)] for k in range(self.K)]
         correction = [[[
             self.u0.copy(deepcopy=True) for j in range(int(self.nF/self.nG)+1)]
             for i in range(self.nG + 1)]
@@ -92,7 +58,8 @@ class Parareal:
         
         for k in range(1, self.K):
 
-            outfileFine = File(f"output/burgers_parareal_K{k}_fine.pvd")
+            if self.save_all_output:
+                outfileFine = File(f"output/burgers_parareal_K{k}_fine.pvd")
             print(f"Iteration {k} fine integrator")
             # run fine integrator in parallel for each k interation
             for i in range(self.nG+1):
@@ -100,7 +67,9 @@ class Parareal:
                 correction[k-1][i][0].assign(yG_correct[k-1][i])
                 for j in range(1, int(self.nF / self.nG) + 1):  # This is for parallel running
                     correction[k-1][i][j].assign(self.fineIntegratorStep(correction[k-1][i][j-1]))
-                    outfileFine.write(project(correction[k-1][i][j], V_out, name="Velocity"))
+                    if self.save_all_output:
+                        outfileFine.write(project(correction[k-1][i][j],
+                                                  V_out, name="Velocity"))
 
 
             # Predict and correct
@@ -110,7 +79,6 @@ class Parareal:
             for i in range(1, self.nG+1):
                 yG[k][i].assign(self.coarseIntegratorStep(yG_correct[k][i-1]))
                 yG_correct[k][i].assign((yG[k][i] - yG[k-1][i] + correction[k-1][i][-1]))
-                print(yG[k][i].dat.data.max(), yG[k-1][i].dat.data.max(), correction[k-1][i][-1].dat.data.max())
                 outfile.write(project(yG_correct[k][i], V_out, name="Velocity"))
                 
 
@@ -118,52 +86,38 @@ class Parareal:
 
 
 
-class Solver():
+class BurgersBE(object):
     """
+    Solves Burgers equation using backwards Euler
     """
-    def __init__(self, solv, u, u0, uk, k, k1, k2, k3, k4):
-        self.solv = solv
-        self.u = u
-        self.u0 = u0
-        self.uk = uk
-        self.k = k
-        self.k1 = k1
-        self.k2 = k2
-        self.k3 = k3
-        self.k4 = k4
+    def __init__(self, V, nu, dt):
 
-    def rk4_step(self, dt):
+        v = TestFunction(V)
+        self.u = Function(V)
+        self.u_ = Function(V)
 
-        self.uk.assign(self.u0)
-        self.solv.solve()
-        self.k1.assign(self.k)
+        eqn = (self.u - self.u_) * v * dx + dt * (self.u * self.u.dx(0) *  v * dx + nu * self.u.dx(0) * v.dx(0) * dx)
 
-        self.uk.assign(self.u0 + dt * self.k1 / 2.0)
-        self.solv.solve()
-        self.k2.assign(self.k)
+        prob = NonlinearVariationalProblem(eqn, self.u)
+        self.solver = NonlinearVariationalSolver(prob)
 
-        self.uk.assign(self.u0 + dt * self.k2 / 2.0)
-        self.solv.solve()
-        self.k3.assign(self.k)
+    def apply(self, u):
 
-        self.uk.assign(self.u0 + dt * self.k3)
-        self.solv.solve()
-        self.k4.assign(self.k)
-
-        self.u.assign(self.u0 + dt * 1 / 6.0 * (self.k1 + 2.0 * self.k2 + 2.0 * self.k3 + self.k4))
+        self.u_.assign(u)
+        self.solver.solve()
 
         return self.u
 
 
 def main_parareal():
-    n = 30
-    mesh = UnitSquareMesh(n, n)
+    n = 1000
+    mesh = PeriodicUnitIntervalMesh(n)
 
     # We choose degree 2 continuous Lagrange polynomials. We also need a
     # piecewise linear space for output purposes::
 
-    V = VectorFunctionSpace(mesh, "CG", 2)
-    V_out = VectorFunctionSpace(mesh, "CG", 1)
+    V = FunctionSpace(mesh, "CG", 2)
+    V_out = FunctionSpace(mesh, "CG", 1)
 
 
     # We also need solution functions for the current and the next
@@ -172,58 +126,58 @@ def main_parareal():
 
     u0 = Function(V, name="Velocity")
     uk = Function(V, name="Velocity")
-    k = Function(V, name="Velocity")
-    k1 = Function(V, name="Velocity")
-    k2 = Function(V, name="Velocity")
-    k3 = Function(V, name="Velocity")
-    k4 = Function(V, name="Velocity")
 
     u = Function(V, name="VelocityNext")
-    v = TestFunction(V)
 
-    # For this problem we need an initial condition::
-
-    x = SpatialCoordinate(mesh)
-    ic = project(as_vector([sin(pi * x[0]), 0]), V)
 
     # We start with current value of u set to the initial condition, but we
     # also use the initial condition as our starting guess for the next
     # value of u::
 
-    u0.assign(ic)
-    u.assign(ic)
+    # Initial condition
+    Vic = FunctionSpace(mesh, "DG", 0)
+    pcg = PCG64(seed=123456789)
+    rg = RandomGenerator(pcg)
+    ic = rg.normal(Vic)
 
-    nu = 0.000001
+    du = TrialFunction(V)
+    v = TestFunction(V)
+    u0 = Function(V)
+    u = Function(V)
+    # lengthscale over which to smooth
+    alpha = Constant(0.05)
+    area = assemble(1*dx(domain=ic.ufl_domain()))
+    a = (alpha**2 * du.dx(0) * v.dx(0) + du * v) * dx
+    L = (ic / sqrt(area)) * v * dx
+    solve(a == L, u0,
+          solver_parameters={'ksp_type': 'preonly', 'pc_type': 'lu'})
 
-    # # lhs
-    du_trial = TrialFunction(V)
-    a = inner(du_trial, v) * dx
-    # rhs
+    a = 10
+    u0.interpolate(Constant(1/a)*ln(1 + exp(Constant(a)*u0)))
 
-    L1 = (-inner(dot(uk, nabla_grad(uk)), v) + nu * inner(grad(uk), grad(v))) * dx
+    # viscosity
+    nu = 0.0001
 
-    prob1 = LinearVariationalProblem(a, L1, k)
-    solv1 = LinearVariationalSolver(prob1)
+    # end time
+    tmax = 5
 
-    # :math:`\nu` is set to a (fairly arbitrary) small constant value::
+    # number of parareal iterations
+    K = 10
+    # number of coarse timesteps
+    nG = 50
+    # number of fine timesteps per coarse timestep
+    nF = 10
 
-    t = 0.0
-    end = 0.2
+    # coarse timestep
+    dT = tmax / nG
+    # fine timestep
+    dt = dT / nF
 
-    K = 5 
-    nG = 100
-    nF = 200
-    xG = np.linspace(t,end,nG+1)
-    deltaG = (end - t)/nG
-    xF = np.zeros((nG,int(nF/nG)+1))
-    for i in range(nG):
-        left,right = xG[i], xG[i+1]
-        xF[i,:] = np.linspace(left,right,int(nF/nG)+1)
-    deltaF = float(xF[0,1] - xF[0,0])
-    
-    solver = Parareal(solv1, u, u0, uk, k, k1, k2, k3, k4, nG, nF, deltaG, deltaF, K)
-    #yG_correct shape: [K][nG]
-    #correction shape: [K][nG][nF/nG+1]
+    print(dT, dt)
+
+    G = BurgersBE(V, nu, dT)
+    F = BurgersBE(V, nu, dt)
+    solver = Parareal(G, F, u0, nG, nF, K)
     
     yG_correct, correction = solver.parareal(V_out)
 

@@ -66,14 +66,14 @@ def rk4_step(dt, solv, u, u0, uk, k, k1, k2, k3, k4):
     return u
   
 def main():
-    n = 30
-    mesh = UnitSquareMesh(n, n)
+    n = 1000
+    mesh = PeriodicUnitIntervalMesh(n)
 
     # We choose degree 2 continuous Lagrange polynomials. We also need a
     # piecewise linear space for output purposes::
 
-    V = VectorFunctionSpace(mesh, "CG", 2)
-    V_out = VectorFunctionSpace(mesh, "CG", 1)
+    V = FunctionSpace(mesh, "CG", 2)
+    V_out = FunctionSpace(mesh, "CG", 1)
 
     # We also need solution functions for the current and the next
     # timestep. Note that, since this is a nonlinear problem, we don't
@@ -88,29 +88,37 @@ def main():
     k4 = Function(V, name="Velocity")
 
     u = Function(V, name="VelocityNext")
+
+    # Initial condition
+    Vic = FunctionSpace(mesh, "DG", 0)
+    pcg = PCG64(seed=123456789)
+    rg = RandomGenerator(pcg)
+    ic = rg.normal(Vic)
+
+    du = TrialFunction(V)
     v = TestFunction(V)
+    u0 = Function(V)
+    u = Function(V)
+    # lengthscale over which to smooth
+    alpha = Constant(0.05)
+    area = assemble(1*dx(domain=ic.ufl_domain()))
+    a = (alpha**2 * du.dx(0) * v.dx(0) + du * v) * dx
+    L = (ic / sqrt(area)) * v * dx
+    solve(a == L, u0, solver_parameters={'ksp_type': 'cg', 'pc_type': 'none'})
 
-    # For this problem we need an initial condition::
+    a = 10
+    u0.interpolate(Constant(1/a)*ln(1 + exp(Constant(a)*u0)))
+    u.assign(u0)
 
-    x = SpatialCoordinate(mesh)
-    ic = project(as_vector([sin(pi * x[0]), 0]), V)
-
-    # We start with current value of u set to the initial condition, but we
-    # also use the initial condition as our starting guess for the next
-    # value of u::
-
-    u0.assign(ic)
-    u.assign(ic)
-
-    timestep = 1.0 / 200
+    timestep = 5.e-5
     nu = 0.0001
 
-    # # lhs
-    du_trial = TrialFunction(V)
-    a = inner(du_trial, v) * dx
+    du = TrialFunction(V)
+    v = TestFunction(V)
+    # lhs
+    a = du * v * dx
     # rhs
-
-    L1 = (-inner(dot(uk, nabla_grad(uk)), v) + nu * inner(grad(uk), grad(v))) * dx
+    L1 = -(uk * uk.dx(0) *  v + nu * uk.dx(0) * v.dx(0)) * dx
 
     prob1 = LinearVariationalProblem(a, L1, k)
     solv1 = LinearVariationalSolver(prob1)
@@ -125,15 +133,19 @@ def main():
     end = 0.5
 
     solver = Solver(solv1, u, u0, uk, k, k1, k2, k3, k4)
-    
+
+    count = 0
     while t <= end:
 
-        # u = rk4_step(timestep, solv1, u, u0, uk, k, k1, k2, k3, k4)
         u = solver.rk4_step(timestep)
+        print(u.dat.data.min(), u.dat.data.max())
 
         u0.assign(u)
         t += timestep
-        outfile.write(project(u, V_out, name="Velocity"))
+        count += 1
+
+        if count % 10 == 0:
+            outfile.write(project(u, V_out, name="Velocity"))
 
 
 if __name__ == "__main__":
