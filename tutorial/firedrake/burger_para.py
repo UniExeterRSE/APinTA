@@ -1,5 +1,6 @@
 from firedrake import *
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Parareal:
@@ -55,7 +56,6 @@ class Parareal:
         # Initial coarse run through
         print(f"First pass coarse integrator")
         outfile_0 = File(f"output/burgers_parareal_K0.pvd")
-        print(errornorm(yG[0], yref[0]))
         self.yG_out.assign(yG[0])
         self.yref_out.assign(yref[0])
         outfile_0.write(self.yG_out, self.yref_out)
@@ -74,25 +74,46 @@ class Parareal:
 
             print(f"Iteration {k+1} fine integrator")
             # run fine integrator on each time slice
+            xf = []
+            yf = []
+            zf = []
             for i in range(self.nG):
                 yF[i].assign(yG_correct[i])
                 yF[i+1].assign(self.fine_solver.apply(yF[i]))
+                xf.append(self.yF[i+1].dat.data[0,0])
+                yf.append(self.yF[i+1].dat.data[0,1])
+                zf.append(self.yF[i+1].dat.data[0,2])
+
                 if self.save_all_output:
                     self.yF_out.assign(yF[i+1])
                     outfileFine.write(self.yF_out)
 
-
             # Predict and correct
             print(f"Iteration {k+1} correction")
             outfile = File(f"output/burgers_parareal_K{k+1}.pvd")
+            x = []
+            y = []
+            z = []
             for i in range(self.nG):
-                print(errornorm(yG[i], yG_prev[i]))
-                yG_correct[i].assign(yG[i] - yG_prev[i] + yF[i])
-                yG_prev[i+1].assign(yG[i+1])
+                yG_prev[i+1].assign(yG_correct[i])
                 yG[i+1].assign(self.coarse_solver.apply(yG_correct[i]))
+                yG_correct[i+1].assign(yG[i+1] - yG_prev[i+1] + yF[i+1])
                 self.yG_out.assign(yG_correct[i])
                 self.yref_out.assign(yref[i])
                 outfile.write(self.yG_out, self.yref_out)
+
+                x.append(self.yG_out.dat.data[0,0])
+                y.append(self.yG_out.dat.data[0,1])
+                z.append(self.yG_out.dat.data[0,2])
+
+            ax1, ax2, ax3 = plt.figure(figsize=(10, 8)).subplots(3, 1)
+            ax1.plot(x)
+            ax2.plot(y)
+            ax3.plot(z)
+            ax1.plot(xf)
+            ax2.plot(yf)
+            ax3.plot(zf)
+            plt.show()
 
 
 class BurgersBE(object):
@@ -149,12 +170,12 @@ class BurgersIMEX(object):
 
 class RK4Lorenz63(object):
 
-    def __init__(V, dt, ndt, sigma=10, beta=8/3, rho=28):
+    def __init__(self, V, dt, ndt, sigma=10, beta=8/3, rho=28):
 
         v1, v2, v3 = TestFunctions(V)
         x_, y_, z_ = TrialFunctions(V)
         self.X = Function(V)
-        x, y, z = self.X.subfunctions
+        x, y, z = self.X.sub(0), self.X.sub(1), self.X.sub(2)
         a = v1 * x_ * dx + v2 * y_ * dx + v3 * z_ * dx
         L = (v1 * sigma * (y - x) * dx + v2 * (x * (rho - z) - y) * dx +
              v3 * (x * y - beta * z) * dx)
@@ -257,6 +278,37 @@ def main_parareal():
     
     solver.parareal()
 
+
+def lorenz_parareal():
+
+    n = 1
+    mesh = UnitIntervalMesh(n)
+    V = VectorFunctionSpace(mesh, "DG", 0, dim=3)
+    X = Function(V)
+    x, y, z = X.sub(0), X.sub(1), X.sub(2)
+    x.assign(Constant(5))
+    y.assign(Constant(-5))
+    z.assign(Constant(20))
+
+    K = 2
+    nG = 180
+    nF = 14400
+
+    tmax = 10
+
+    # coarse timestep
+    dT = tmax / nG
+    # fine timestep
+    dt = dT / nF
+
+    G = RK4Lorenz63(V, dT, 1)
+    F = RK4Lorenz63(V, dt, nF)
     
+    solver = Parareal(G, F, V, X, nG, K)
+    solver.parareal()
+
+
 if __name__ == "__main__":
-    main_parareal()
+    # main_parareal()
+    lorenz_parareal()
+    
