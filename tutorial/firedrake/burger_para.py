@@ -192,19 +192,6 @@ class RK4Lorenz63(object):
         return self.X
 
 
-def rk4_step(dt, x, f, **f_kwargs):
-    """
-    A single timestep for function f using RK4
-    """
-    x1 = f(x, **f_kwargs)  
-
-    x2 = f(x+x1*dt/2.0, **f_kwargs)
-    x3 = f(x+x2*dt/2.0, **f_kwargs)
-    x4 = f(x+x3*dt, **f_kwargs)
-    x_n = x + dt*(x1 + 2*x2 + 2*x3 + x4)/6.0
-    return x_n
-
-
 def main_parareal():
     n = 1000
     mesh = PeriodicUnitIntervalMesh(n)
