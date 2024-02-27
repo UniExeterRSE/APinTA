@@ -9,7 +9,7 @@ class Parareal:
     """
 
     def __init__(self, coarse_solver, fine_solver, V, u0,
-                 nG, K, save_all_output=False):
+                 nG, K)
         """
         """
 
@@ -18,7 +18,6 @@ class Parareal:
         self.u0 = u0
         self.nG = nG
         self.K = K
-        self.save_all_output = save_all_output
 
         self.yref = [Function(V) for i in range(self.nG+1)]
         self.yG = [Function(V) for i in range(self.nG+1)]
@@ -253,7 +252,48 @@ def main_parareal():
     #F = BurgersBE(V, nu, dt, nF)
     G = BurgersIMEX(V, nu, dT, 1)
     F = BurgersIMEX(V, nu, dt, nF)
-    solver = Parareal(G, F, V, u0, nG, K, save_all_output=True)
+    solver = Parareal(G, F, V, u0, nG, K)
+    
+    solver.parareal()
+
+
+def gander_parareal():
+    # settings to match Gander and Hairer paper
+    n = 50
+    mesh = PeriodicUnitIntervalMesh(n)
+
+    # We choose degree 2 continuous Lagrange polynomials.
+    V = FunctionSpace(mesh, "CG", 2)
+    u0 = Function(V, name="Velocity")
+
+    # Initial condition
+    x = SpatialCoordinate(mesh)[0]
+    u0.interpolate(sin(2*pi*x))
+
+    # viscosity
+    nu = 1/50.
+
+    # end time
+    tmax = 1
+
+    # number of parareal iterations
+    K = 10
+    # number of coarse timesteps
+    nG = 10
+    # number of fine timesteps per coarse timestep
+    nF = 10
+
+    # coarse timestep
+    dT = tmax / nG
+    # fine timestep
+    dt = dT / nF
+
+    print("coarse timestep: ", dT)
+    print("fine timestep: ", dt)
+
+    G = BurgersBE(V, nu, dT, 1)
+    F = BurgersBE(V, nu, dt, nF)
+    solver = Parareal(G, F, V, u0, nG, K)
     
     solver.parareal()
 
@@ -290,6 +330,7 @@ def lorenz_parareal():
 
 
 if __name__ == "__main__":
-    main_parareal()
+    #main_parareal()
     #lorenz_parareal()
+    gander_parareal()
     
