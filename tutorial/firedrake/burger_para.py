@@ -63,57 +63,26 @@ class Parareal:
         for i in range(self.nG):
             yG[i+1].assign(self.coarse_solver.apply(yG[i]))
             yG_correct[i+1].assign(yG[i+1])
+            yG_prev[i+1].assign(yG[i+1])
             self.yG_out.assign(yG[i+1])
             self.yref_out.assign(yref[i+1])
             outfile_0.write(self.yG_out, self.yref_out)
 
         for k in range(self.K):
 
-            if self.save_all_output:
-                outfileFine = File(f"output/burgers_parareal_K{k+1}_fine.pvd")
-
-            print(f"Iteration {k+1} fine integrator")
-            # run fine integrator on each time slice
-            xf = []
-            yf = []
-            zf = []
-            for i in range(self.nG):
-                yF[i].assign(yG_correct[i])
-                yF[i+1].assign(self.fine_solver.apply(yF[i]))
-                xf.append(self.yF[i+1].dat.data[0,0])
-                yf.append(self.yF[i+1].dat.data[0,1])
-                zf.append(self.yF[i+1].dat.data[0,2])
-
-                if self.save_all_output:
-                    self.yF_out.assign(yF[i+1])
-                    outfileFine.write(self.yF_out)
-
             # Predict and correct
             print(f"Iteration {k+1} correction")
             outfile = File(f"output/burgers_parareal_K{k+1}.pvd")
-            x = []
-            y = []
-            z = []
             for i in range(self.nG):
-                yG_prev[i+1].assign(yG_correct[i])
+                yF[i+1].assign(self.fine_solver.apply(yG_correct[i]))
                 yG[i+1].assign(self.coarse_solver.apply(yG_correct[i]))
                 yG_correct[i+1].assign(yG[i+1] - yG_prev[i+1] + yF[i+1])
+                #print(errornorm(yG[i+1], yG_prev[i+1]))
+                print(errornorm(yG_correct[i+1], yref[i+1]))
+                yG_prev[i+1].assign(yG[i+1])
                 self.yG_out.assign(yG_correct[i])
                 self.yref_out.assign(yref[i])
                 outfile.write(self.yG_out, self.yref_out)
-
-                x.append(self.yG_out.dat.data[0,0])
-                y.append(self.yG_out.dat.data[0,1])
-                z.append(self.yG_out.dat.data[0,2])
-
-            ax1, ax2, ax3 = plt.figure(figsize=(10, 8)).subplots(3, 1)
-            ax1.plot(x)
-            ax2.plot(y)
-            ax3.plot(z)
-            ax1.plot(xf)
-            ax2.plot(yf)
-            ax3.plot(zf)
-            plt.show()
 
 
 class BurgersBE(object):
@@ -151,6 +120,7 @@ class BurgersIMEX(object):
         v = TestFunction(V)
         self.u = Function(V)
         self.u_ = Function(V)
+        self.unp1 = Function(V)
 
         eqn = (self.u - self.u_) * v * dx + dt * (self.u_ * self.u_.dx(0) *  v * dx + nu * self.u.dx(0) * v.dx(0) * dx)
 
@@ -161,11 +131,13 @@ class BurgersIMEX(object):
 
     def apply(self, u):
 
+        self.unp1.assign(u)
         for n in range(self.ndt):
-            self.u_.assign(u)
+            self.u_.assign(self.unp1)
             self.solver.solve()
+            self.unp1.assign(self.u)
 
-        return self.u
+        return self.unp1
 
 
 class RK4Lorenz63(object):
@@ -188,29 +160,36 @@ class RK4Lorenz63(object):
         self.k2 = Function(V)
         self.k3 = Function(V)
         self.k4 = Function(V)
+        self.Xn = Function(V)
+        self.Xnp1 = Function(V)
         self.dt = dt
+        self.ndt = ndt
 
     def apply(self, X):
 
-        self.X.assign(X)
-        self.solver.solve()
-        self.k1.assign(self.k)
+        self.Xnp1.assign(X)
 
-        self.X.assign(X + self.dt * self.k1 / 2.0)
-        self.solver.solve()
-        self.k2.assign(self.k)
+        for n in range(self.ndt):
+            self.Xn.assign(self.Xnp1)
+            self.solver.solve()
+            self.k1.assign(self.k)
 
-        self.X.assign(X + self.dt * self.k2 / 2.0)
-        self.solver.solve()
-        self.k3.assign(self.k)
+            self.X.assign(self.Xn + self.dt * self.k1 / 2.0)
+            self.solver.solve()
+            self.k2.assign(self.k)
 
-        self.X.assign(X + self.dt * self.k3)
-        self.solver.solve()
-        self.k4.assign(self.k)
+            self.X.assign(self.Xn + self.dt * self.k2 / 2.0)
+            self.solver.solve()
+            self.k3.assign(self.k)
 
-        self.X.assign(X + self.dt * 1 / 6.0 * (self.k1 + 2.0 * self.k2 + 2.0 * self.k3 + self.k4))
+            self.X.assign(self.Xn + self.dt * self.k3)
+            self.solver.solve()
+            self.k4.assign(self.k)
 
-        return self.X
+            self.Xnp1.assign(self.Xn + self.dt * 1 / 6.0 * (self.k1 + 2.0 * self.k2 + 2.0 * self.k3 + self.k4))
+            
+
+        return self.Xnp1
 
 
 def main_parareal():
@@ -253,14 +232,14 @@ def main_parareal():
     nu = 0.01
 
     # end time
-    tmax = 0.5
+    tmax = 5
 
     # number of parareal iterations
     K = 5
     # number of coarse timesteps
-    nG = 2
+    nG = 10
     # number of fine timesteps per coarse timestep
-    nF = 1000
+    nF = 10
 
     # coarse timestep
     dT = tmax / nG
@@ -270,8 +249,8 @@ def main_parareal():
     print("coarse timestep: ", dT)
     print("fine timestep: ", dt)
 
-    # G = BurgersBE(V, nu, dT, 1)
-    # F = BurgersBE(V, nu, dt, nF)
+    #G = BurgersBE(V, nu, dT, 1)
+    #F = BurgersBE(V, nu, dt, nF)
     G = BurgersIMEX(V, nu, dT, 1)
     F = BurgersIMEX(V, nu, dt, nF)
     solver = Parareal(G, F, V, u0, nG, K, save_all_output=True)
@@ -290,9 +269,9 @@ def lorenz_parareal():
     y.assign(Constant(-5))
     z.assign(Constant(20))
 
-    K = 2
+    K = 20
     nG = 180
-    nF = 14400
+    nF = 80
 
     tmax = 10
 
@@ -301,6 +280,8 @@ def lorenz_parareal():
     # fine timestep
     dt = dT / nF
 
+    print("coarse dt: ", dT)
+    print("fine dt: ", dt)
     G = RK4Lorenz63(V, dT, 1)
     F = RK4Lorenz63(V, dt, nF)
     
@@ -309,6 +290,6 @@ def lorenz_parareal():
 
 
 if __name__ == "__main__":
-    # main_parareal()
-    lorenz_parareal()
+    main_parareal()
+    #lorenz_parareal()
     
