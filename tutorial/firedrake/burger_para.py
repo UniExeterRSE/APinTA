@@ -8,29 +8,43 @@ class Parareal:
     Parallel-in-time algorithm
     """
 
-    def __init__(self, coarse_solver, fine_solver, V, u0,
-                 nG, K)
+    def __init__(self, coarse_solver, fine_solver, V, u0, nG, K):
         """
+        V: function space
+        u0: initial condition
+        nG: number of coarse timesteps
+        K: number of parareal iterations
         """
 
         self.coarse_solver = coarse_solver
         self.fine_solver = fine_solver        
-        self.u0 = u0
         self.nG = nG
         self.K = K
 
+        # list to hold reference solution at coarse time points
         self.yref = [Function(V) for i in range(self.nG+1)]
+
+        # list to hold coarse solution at coarse time points
         self.yG = [Function(V) for i in range(self.nG+1)]
+
+        # list to hold coarse solution from previous iteration at
+        # coarse time points
         self.yG_prev = [Function(V) for i in range(self.nG+1)]
-        self.yG_correct = [Function(V) for i in range(self.nG+1)]
+
+        # list to hold solution at coarse time points
+        self.soln = [Function(V) for i in range(self.nG+1)]
+
+        # list to hold fine solution at coarse time points
         self.yF = [Function(V) for i in range(self.nG+1)]
 
+        # Initialise everything
         self.yref[0].assign(u0)
         self.yG[0].assign(u0)
         self.yG_prev[0].assign(u0)
-        self.yG_correct[0].assign(u0)
         self.yF[0].assign(u0)
+        self.soln[0].assign(u0)
 
+        # Functions for writing out to pvd files
         self.yG_out = Function(V, name="yG")
         self.yF_out = Function(V, name="yF")
         self.yref_out = Function(V, name="yref")
@@ -38,49 +52,56 @@ class Parareal:
     def parareal(self):
         """
         Parareal calculation
-        nG number of coarse timesteps
-        K number of parallel iterations
         """
 
-        # reference solution
+        # compute reference solution
         yref = self.yref
         for i in range(self.nG):
+            # each application of the fine solver does nF timesteps
             yref[i+1].assign(self.fine_solver.apply(yref[i]))
 
+        # get some things
         yG = self.yG
         yG_prev = self.yG_prev
-        yG_correct = self.yG_correct
         yF = self.yF
+        soln = self.soln
 
-        # Initial coarse run through
-        print(f"First pass coarse integrator")
-        outfile_0 = File(f"output/burgers_parareal_K0.pvd")
+        # set up output file and write out initial coarse solution and
+        # initial reference solution (the same, as it's just the
+        # initial condition!)
+        outfile0 = File(f"output/burgers_parareal_K0.pvd")
         self.yG_out.assign(yG[0])
         self.yref_out.assign(yref[0])
-        outfile_0.write(self.yG_out, self.yref_out)
+        outfile0.write(self.yG_out, self.yref_out)
 
+        # Initial coarse run through
+        print(f"First coarse integrator iteration")
         for i in range(self.nG):
             yG[i+1].assign(self.coarse_solver.apply(yG[i]))
-            yG_correct[i+1].assign(yG[i+1])
+            soln[i+1].assign(yG[i+1])
             yG_prev[i+1].assign(yG[i+1])
             self.yG_out.assign(yG[i+1])
             self.yref_out.assign(yref[i+1])
-            outfile_0.write(self.yG_out, self.yref_out)
+            outfile0.write(self.yG_out, self.yref_out)
 
         for k in range(self.K):
-
-            # Predict and correct
-            print(f"Iteration {k+1} correction")
+            print(f"Iteration {k+1}")
             outfile = File(f"output/burgers_parareal_K{k+1}.pvd")
+            self.yG_out.assign(soln[0])
+            self.yref_out.assign(yref[0])
+            outfile.write(self.yG_out, self.yref_out)
+            # Predict and correct
             for i in range(self.nG):
-                yF[i+1].assign(self.fine_solver.apply(yG_correct[i]))
-                yG[i+1].assign(self.coarse_solver.apply(yG_correct[i]))
-                yG_correct[i+1].assign(yG[i+1] - yG_prev[i+1] + yF[i+1])
+                yF[i+1].assign(self.fine_solver.apply(soln[i]))
+            for i in range(self.nG):
+                yG[i+1].assign(self.coarse_solver.apply(soln[i]))
+                soln[i+1].assign(yG[i+1] - yG_prev[i+1] + yF[i+1])
                 #print(errornorm(yG[i+1], yG_prev[i+1]))
-                print(errornorm(yG_correct[i+1], yref[i+1]))
+                #print(errornorm(yG_correct[i+1], yref[i+1]))
+            for i in range(self.nG):
                 yG_prev[i+1].assign(yG[i+1])
-                self.yG_out.assign(yG_correct[i])
-                self.yref_out.assign(yref[i])
+                self.yG_out.assign(soln[i+1])
+                self.yref_out.assign(yref[i+1])
                 outfile.write(self.yG_out, self.yref_out)
 
 
@@ -231,10 +252,10 @@ def main_parareal():
     nu = 0.01
 
     # end time
-    tmax = 5
+    tmax = 1
 
     # number of parareal iterations
-    K = 5
+    K = 0
     # number of coarse timesteps
     nG = 10
     # number of fine timesteps per coarse timestep
@@ -329,8 +350,10 @@ def lorenz_parareal():
     solver.parareal()
 
 
+
+
 if __name__ == "__main__":
     #main_parareal()
     #lorenz_parareal()
-    gander_parareal()
-    
+    #gander_parareal()
+    get_burgers_data()
